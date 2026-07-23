@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,9 +8,12 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Rajdhani:wght@500;600;700&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <div id="app-container">
         <!-- Canvas principal pour le rendu du jeu (Ecran Séparé Vertical) -->
@@ -40,12 +44,14 @@
                     <div class="player-controls p1-card">
                         <h4><span class="badge p1-badge">P1</span> JOUEUR 1 (BLEU)</h4>
                         <p><strong>Manette 1 :</strong> Stick G (Dépl.) | Stick D (Visée) | L2 (Torche) | R2 (Tir)</p>
-                        <p class="kb-hint"><strong>Clavier/Souris :</strong> [Z][Q][S][D] + Souris + Clic G (Tir) + Clic D/Espace (Torche)</p>
+                        <p class="kb-hint"><strong>Clavier/Souris :</strong> [Z][Q][S][D] + Souris + Clic G (Tir) + Clic
+                            D/Espace (Torche)</p>
                     </div>
                     <div class="player-controls p2-card">
                         <h4><span class="badge p2-badge">P2</span> JOUEUR 2 (ROUGE)</h4>
                         <p><strong>Manette 2 :</strong> Stick G (Dépl.) | Stick D (Visée) | L2 (Torche) | R2 (Tir)</p>
-                        <p class="kb-hint"><strong>Clavier P2 :</strong> Flèches + [I][J][K][L] (Visée) + [O] (Tir) + [P] (Torche)</p>
+                        <p class="kb-hint"><strong>Clavier P2 :</strong> Flèches + [I][J][K][L] (Visée) + [O] (Tir) +
+                            [P] (Torche)</p>
                     </div>
                 </div>
                 <!-- Dual Controller Ready Badges for Start Menu -->
@@ -59,7 +65,8 @@
                         <span class="rb-icon">🎮</span> <span class="rb-text">P2: MAINTENEZ N'IMPORTE QUEL BOUTON</span>
                     </div>
                 </div>
-                <p class="ready-hint">Les 2 joueurs doivent maintenir N'IMPORTE QUELLE TOUCHE pour lancer le combat !</p>
+                <p class="ready-hint">Les 2 joueurs doivent maintenir N'IMPORTE QUELLE TOUCHE pour lancer le combat !
+                </p>
 
                 <button id="btn-start" class="btn-primary">LANCER LE COMBAT</button>
             </div>
@@ -75,14 +82,19 @@
                 </div>
                 <div class="bar-container health-bar-wrap">
                     <div class="bar-label">SANTÉ</div>
-                    <div class="bar-bg"><div id="p1-hp" class="bar-fill hp-fill p1-bg" style="width: 100%;"></div></div>
+                    <div class="bar-bg">
+                        <div id="p1-hp-ghost" class="bar-fill hp-ghost" style="width: 100%;"></div>
+                        <div id="p1-hp" class="bar-fill hp-fill p1-bg" style="width: 100%;"></div>
+                    </div>
                 </div>
                 <div class="status-row">
                     <div class="cooldown-widget">
                         <div class="cd-ring-wrap">
                             <svg class="cd-ring" viewBox="0 0 36 36">
-                                <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
-                                <path id="p1-cd-path" class="circle-fill p1-stroke" stroke-dasharray="100, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                                <path class="circle-bg"
+                                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                <path id="p1-cd-path" class="circle-fill p1-stroke" stroke-dasharray="100, 100"
+                                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
                             </svg>
                             <span id="p1-cd-text" class="cd-text">PRÊT</span>
                         </div>
@@ -102,6 +114,9 @@
                 <div id="round-counter" class="round-display">ROUND 1</div>
             </div>
 
+            <!-- Kill Feed -->
+            <div id="kill-feed" class="kill-feed"></div>
+
             <!-- P2 HUD (Droite) -->
             <div id="p2-hud" class="player-hud right">
                 <div class="hud-header">
@@ -110,7 +125,10 @@
                 </div>
                 <div class="bar-container health-bar-wrap">
                     <div class="bar-label">SANTÉ</div>
-                    <div class="bar-bg"><div id="p2-hp" class="bar-fill hp-fill p2-bg" style="width: 100%;"></div></div>
+                    <div class="bar-bg">
+                        <div id="p2-hp-ghost" class="bar-fill hp-ghost" style="width: 100%;"></div>
+                        <div id="p2-hp" class="bar-fill hp-fill p2-bg" style="width: 100%;"></div>
+                    </div>
                 </div>
                 <div class="status-row">
                     <div id="p2-light-indicator" class="indicator-box light-off">
@@ -120,8 +138,10 @@
                     <div class="cooldown-widget">
                         <div class="cd-ring-wrap">
                             <svg class="cd-ring" viewBox="0 0 36 36">
-                                <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
-                                <path id="p2-cd-path" class="circle-fill p2-stroke" stroke-dasharray="100, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                                <path class="circle-bg"
+                                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                <path id="p2-cd-path" class="circle-fill p2-stroke" stroke-dasharray="100, 100"
+                                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
                             </svg>
                             <span id="p2-cd-text" class="cd-text">PRÊT</span>
                         </div>
@@ -176,15 +196,18 @@
                 <div class="ready-status-box">
                     <div id="p1-ready-badge" class="ready-badge waiting">
                         <div id="p1-ready-bar" class="ready-progress-bar" style="width: 0%;"></div>
-                        <span class="rb-icon">🎮</span> <span class="rb-text">P1: MAINTENEZ N'IMPORTE QUELLE TOUCHE</span>
+                        <span class="rb-icon">🎮</span> <span class="rb-text">P1: MAINTENEZ N'IMPORTE QUELLE
+                            TOUCHE</span>
                     </div>
                     <div id="p2-ready-badge" class="ready-badge waiting">
                         <div id="p2-ready-bar" class="ready-progress-bar" style="width: 0%;"></div>
-                        <span class="rb-icon">🎮</span> <span class="rb-text">P2: MAINTENEZ N'IMPORTE QUELLE TOUCHE</span>
+                        <span class="rb-icon">🎮</span> <span class="rb-text">P2: MAINTENEZ N'IMPORTE QUELLE
+                            TOUCHE</span>
                     </div>
                 </div>
 
-                <p class="ready-hint">Les 2 joueurs doivent maintenir N'IMPORTE QUELLE TOUCHE de leur manette (ou Clavier)</p>
+                <p class="ready-hint">Les 2 joueurs doivent maintenir N'IMPORTE QUELLE TOUCHE de leur manette (ou
+                    Clavier)</p>
 
                 <button id="btn-next-round" class="btn-primary">LANCER LA MANCHE (CLIC FORCÉ)</button>
             </div>
@@ -194,4 +217,5 @@
     <!-- Script principal du jeu -->
     <script src="game.js"></script>
 </body>
+
 </html>

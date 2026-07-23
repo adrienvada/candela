@@ -179,6 +179,60 @@ class AudioEngine {
         osc.start(t);
         osc.stop(t + 0.1);
     }
+
+    playAmbientDrone() {
+        if (!this.ctx || this.droneNode) return;
+        const t = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(55, t);
+        gain.gain.setValueAtTime(0.03, t);
+
+        const osc2 = this.ctx.createOscillator();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(82.5, t);
+        const gain2 = this.ctx.createGain();
+        gain2.gain.setValueAtTime(0.015, t);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc2.connect(gain2);
+        gain2.connect(this.ctx.destination);
+
+        osc.start();
+        osc2.start();
+        this.droneNode = { osc, gain, osc2, gain2 };
+    }
+
+    stopAmbientDrone() {
+        if (this.droneNode) {
+            try {
+                this.droneNode.osc.stop();
+                this.droneNode.osc2.stop();
+            } catch (e) { /* already stopped */ }
+            this.droneNode = null;
+        }
+    }
+
+    playHeartbeat() {
+        if (!this.ctx) return;
+        const t = this.ctx.currentTime;
+        for (let i = 0; i < 2; i++) {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            const offset = i * 0.15;
+            osc.frequency.setValueAtTime(60, t + offset);
+            osc.frequency.exponentialRampToValueAtTime(30, t + offset + 0.1);
+            gain.gain.setValueAtTime(0.2, t + offset);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + offset + 0.15);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(t + offset);
+            osc.stop(t + offset + 0.15);
+        }
+    }
 }
 
 // ==========================================
@@ -626,6 +680,10 @@ class Player {
 
         this.footstepTimer = 0;
         this.screenShake = 0;
+        this.ghostHp = 100;
+        this.targetAngle = startAngle;
+        this.punchZoom = 0;
+        this.vignetteFlash = 0;
     }
 
     resetPosition(x, y, angle) {
@@ -638,6 +696,9 @@ class Player {
         this.shootCooldown = 0;
         this.flashlightOn = false;
         this.lastMuzzleFlash = 0;
+        this.ghostHp = 100;
+        this.punchZoom = 0;
+        this.vignetteFlash = 0;
     }
 
     update(dt, input, mapSegments, audioEngine) {
@@ -670,10 +731,14 @@ class Player {
 
         this.moveAndCollide(nextX, nextY, mapSegments);
 
-        // Aim angle update
+        // Aim angle update (smooth lerp)
         if (input.aimAngle !== null) {
-            this.angle = input.aimAngle;
+            this.targetAngle = input.aimAngle;
         }
+        let angleDiff = this.targetAngle - this.angle;
+        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+        this.angle += angleDiff * Math.min(1, dt * 18);
 
         // Flashlight toggle
         if (input.light !== this.flashlightOn) {
@@ -690,6 +755,26 @@ class Player {
             }
         } else {
             this.footstepTimer = 0;
+        }
+
+        // Ghost HP lerp (delayed health bar)
+        if (this.ghostHp > this.hp) {
+            this.ghostHp -= dt * 60;
+            if (this.ghostHp < this.hp) this.ghostHp = this.hp;
+        } else {
+            this.ghostHp = this.hp;
+        }
+
+        // Punch zoom decay
+        if (this.punchZoom > 0) {
+            this.punchZoom -= dt * 12;
+            if (this.punchZoom < 0) this.punchZoom = 0;
+        }
+
+        // Vignette flash decay
+        if (this.vignetteFlash > 0) {
+            this.vignetteFlash -= dt * 5;
+            if (this.vignetteFlash < 0) this.vignetteFlash = 0;
         }
     }
 
@@ -780,6 +865,8 @@ class Bullet {
                 this.alive = false;
                 p.hp -= 50; // 2 shots to kill
                 p.screenShake = 1.0;
+                p.punchZoom = 1.0;
+                p.vignetteFlash = 1.0;
                 audioEngine.playHit();
 
                 // Find shooter & award points!
@@ -957,6 +1044,99 @@ class ParticleSystem {
     }
 }
 
+// Ambient Dust/Ember Particles
+class AmbientParticleSystem {
+    constructor(mapWidth, mapHeight) {
+        this.particles = [];
+        this.mapWidth = mapWidth || 1400;
+        this.mapHeight = mapHeight || 1400;
+        for (let i = 0; i < 60; i++) {
+            this.particles.push(this.createParticle());
+        }
+    }
+
+    createParticle() {
+        return {
+            x: Math.random() * this.mapWidth,
+            y: Math.random() * this.mapHeight,
+            vx: (Math.random() - 0.5) * 15,
+            vy: -5 - Math.random() * 10,
+            size: 1 + Math.random() * 2,
+            alpha: 0.1 + Math.random() * 0.3,
+            pulse: Math.random() * Math.PI * 2,
+            pulseSpeed: 1 + Math.random() * 2,
+            life: 1.0,
+            maxLife: 8 + Math.random() * 12
+        };
+    }
+
+    update(dt) {
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const p = this.particles[i];
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            p.pulse += p.pulseSpeed * dt;
+            p.life -= dt / p.maxLife;
+            if (p.life <= 0 || p.x < -20 || p.x > this.mapWidth + 20 || p.y < -20 || p.y > this.mapHeight + 20) {
+                this.particles[i] = this.createParticle();
+            }
+        }
+    }
+
+    draw(ctx) {
+        for (let i = 0; i < this.particles.length; i++) {
+            const p = this.particles[i];
+            const a = p.alpha * (0.5 + 0.5 * Math.sin(p.pulse)) * Math.min(1, p.life * 3);
+            ctx.globalAlpha = a;
+            ctx.fillStyle = '#ffeedd';
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1.0;
+    }
+}
+
+// ==========================================
+// Replay System for Killcam
+// ==========================================
+class ReplaySystem {
+    constructor(maxDuration = 2.0, fps = 60) {
+        this.maxFrames = Math.ceil(maxDuration * fps);
+        this.frames = [];
+        this.frameTimer = 0;
+        this.timePerFrame = 1 / fps;
+    }
+
+    reset() {
+        this.frames = [];
+        this.frameTimer = 0;
+    }
+
+    recordFrame(dt, game) {
+        this.frameTimer += dt;
+        if (this.frameTimer >= this.timePerFrame) {
+            this.frameTimer = 0;
+            const snapshot = {
+                players: game.players.map(p => ({
+                    id: p.id, name: p.name, color: p.color, radius: p.radius,
+                    x: p.x, y: p.y, angle: p.angle, hp: p.hp,
+                    flashlightOn: p.flashlightOn, lastMuzzleFlash: p.lastMuzzleFlash,
+                    screenShake: p.screenShake, punchZoom: p.punchZoom, vignetteFlash: p.vignetteFlash
+                })),
+                bullets: game.bullets.map(b => ({
+                    x: b.x, y: b.y, radius: b.radius
+                })),
+                particles: game.particleSystem.particles.map(p => ({ ...p }))
+            };
+            this.frames.push(snapshot);
+            if (this.frames.length > this.maxFrames) {
+                this.frames.shift();
+            }
+        }
+    }
+}
+
 // ==========================================
 // 5. MAIN GAME CLASS & SPLIT-SCREEN RENDERER
 // ==========================================
@@ -1002,6 +1182,30 @@ class CandelaGame {
         this.p2ClickPrev = false;
 
         this.lastTime = performance.now();
+
+        // Polish systems
+        this.ambientParticles = new AmbientParticleSystem(this.map.width, this.map.height);
+        this.fogCanvas = null;
+        this.fogCtx = null;
+        this.cam = [
+            { x: 200, y: 200 },
+            { x: 1200, y: 1200 }
+        ];
+        this.camLerpSpeed = 8.0;
+        this.bulletDecals = [];
+        this.killFeedEntries = [];
+        this.roundFadeIn = 0;
+        this.slowMotionTimer = 0;
+        this.scoreAnimP1 = 0;
+        this.scoreAnimP2 = 0;
+        this.prevScoreP1 = 0;
+        this.prevScoreP2 = 0;
+        this.heartbeatTimer = 0;
+        
+        // Replay System
+        this.replaySystem = new ReplaySystem(2.5, 60); // 2.5 seconds of replay
+        this.replayTimer = 0;
+        this.currentReplaySnapshot = null;
 
         this.setupUI();
         this.resize();
@@ -1066,6 +1270,14 @@ class CandelaGame {
         this.players[1].resetPosition(1200, 1200, Math.PI * 1.25);
         this.bullets = [];
         this.roundTimer = 120;
+        this.bulletDecals = [];
+        this.roundFadeIn = 1.0;
+        this.slowMotionTimer = 0;
+        this.cam[0] = { x: 200, y: 200 };
+        this.cam[1] = { x: 1200, y: 1200 };
+
+        // Start ambient drone
+        this.audioEngine.playAmbientDrone();
 
         // Hide virtual cursors when round starts
         const elP1Cursor = document.getElementById('cursor-p1');
@@ -1138,14 +1350,18 @@ class CandelaGame {
             // Apply Damage & Score!
             hitOpponent.hp -= 50; // 2 shots to kill
             hitOpponent.screenShake = 1.0;
+            hitOpponent.punchZoom = 1.0;
+            hitOpponent.vignetteFlash = 1.0;
             this.audioEngine.playHit();
 
             player.score += 100;
             this.particleSystem.addFloatingText(oppImpactPoint.x, oppImpactPoint.y - 15, '+100 TOUCHÉ !', player.color);
+            this.addKillFeedEntry(`${player.name} → TOUCHÉ !`, player.color);
 
             if (hitOpponent.hp <= 0) {
                 player.score += 500;
                 this.particleSystem.addFloatingText(oppImpactPoint.x, oppImpactPoint.y - 35, '+500 ÉLIMINATION !', '#00ff88');
+                this.addKillFeedEntry(`${player.name} ✦ ÉLIMINATION !`, '#00ff88');
             }
 
             // Blood / Energy impact sparks
@@ -1157,6 +1373,9 @@ class CandelaGame {
             for (let k = 0; k < 8; k++) {
                 this.particleSystem.addSpark(wallHitPoint.x, wallHitPoint.y, player.angle + Math.PI);
             }
+            // Bullet decal on wall
+            this.bulletDecals.push({ x: wallHitPoint.x, y: wallHitPoint.y, size: 3 + Math.random() * 4, alpha: 0.6 });
+            if (this.bulletDecals.length > 50) this.bulletDecals.shift();
         }
 
         // Add glowing laser tracer beam particle across full trajectory
@@ -1305,18 +1524,57 @@ class CandelaGame {
             
             // Permet aux particules de sang/texte de continuer de s'animer
             this.particleSystem.update(dt);
+            this.ambientParticles.update(dt);
             
-            // Réduit le tremblement de l'écran (camera shake) pour qu'il ne reste pas figé
-            if (this.players[0].screenShake > 0) {
-                this.players[0].screenShake = Math.max(0, this.players[0].screenShake - dt * 10);
+            // Decay visual effects for both players
+            for (const p of this.players) {
+                if (p.screenShake > 0) p.screenShake = Math.max(0, p.screenShake - dt * 10);
+                if (p.punchZoom > 0) p.punchZoom = Math.max(0, p.punchZoom - dt * 12);
+                if (p.vignetteFlash > 0) p.vignetteFlash = Math.max(0, p.vignetteFlash - dt * 5);
+                if (p.ghostHp > p.hp) p.ghostHp = Math.max(p.hp, p.ghostHp - dt * 60);
             }
-            if (this.players[1].screenShake > 0) {
-                this.players[1].screenShake = Math.max(0, this.players[1].screenShake - dt * 10);
+
+            // Slow motion decay
+            if (this.slowMotionTimer > 0) this.slowMotionTimer -= dt;
+
+            // Kill feed decay
+            for (let i = this.killFeedEntries.length - 1; i >= 0; i--) {
+                this.killFeedEntries[i].life -= dt;
+                if (this.killFeedEntries[i].life <= 0) this.killFeedEntries.splice(i, 1);
             }
+
+            if (this.victoryDelayTimer > 0) {
+                this.victoryDelayTimer -= dt;
+                if (this.victoryDelayTimer <= 0) {
+                    const modal = document.getElementById('victory-modal');
+                    if (modal) modal.classList.remove('hidden');
+                }
+            } else {
+                this.updateMenuCursors(dt);
+                this.updateVictoryReadyLoop(dt);
+            }
+
             return;
         }
 
         if (this.gameState !== 'PLAYING') return;
+
+        // Slow motion effect
+        let effectiveDt = dt;
+        if (this.slowMotionTimer > 0) {
+            this.slowMotionTimer -= dt;
+            effectiveDt = dt * 0.25;
+            if (this.slowMotionTimer <= 0) this.slowMotionTimer = 0;
+        }
+
+        // Round fade-in
+        if (this.roundFadeIn > 0) {
+            this.roundFadeIn -= dt * 2.5;
+            if (this.roundFadeIn < 0) this.roundFadeIn = 0;
+        }
+
+        // Ambient particles
+        this.ambientParticles.update(effectiveDt);
 
         // Round Timer
         this.roundTimer -= dt;
@@ -1328,27 +1586,65 @@ class CandelaGame {
         const viewWidth = this.canvas.width / 2;
         const viewHeight = this.canvas.height;
 
-        const vP1 = { x: 0, y: 0, width: viewWidth, height: viewHeight, camX: this.players[0].x, camY: this.players[0].y };
-        const vP2 = { x: viewWidth, y: 0, width: viewWidth, height: viewHeight, camX: this.players[1].x, camY: this.players[1].y };
+        const vP1 = { x: 0, y: 0, width: viewWidth, height: viewHeight, camX: this.cam[0].x, camY: this.cam[0].y };
+        const vP2 = { x: viewWidth, y: 0, width: viewWidth, height: viewHeight, camX: this.cam[1].x, camY: this.cam[1].y };
 
         const inP1 = this.inputManager.getPlayerInput(0, this.players[0], vP1);
         const inP2 = this.inputManager.getPlayerInput(1, this.players[1], vP2);
 
-        this.players[0].update(dt, inP1, this.map.segments, this.audioEngine);
-        this.players[1].update(dt, inP2, this.map.segments, this.audioEngine);
+        this.players[0].update(effectiveDt, inP1, this.map.segments, this.audioEngine);
+        this.players[1].update(effectiveDt, inP2, this.map.segments, this.audioEngine);
+
+        // Camera lerp
+        this.cam[0].x += (this.players[0].x - this.cam[0].x) * Math.min(1, effectiveDt * this.camLerpSpeed);
+        this.cam[0].y += (this.players[0].y - this.cam[0].y) * Math.min(1, effectiveDt * this.camLerpSpeed);
+        this.cam[1].x += (this.players[1].x - this.cam[1].x) * Math.min(1, effectiveDt * this.camLerpSpeed);
+        this.cam[1].y += (this.players[1].y - this.cam[1].y) * Math.min(1, effectiveDt * this.camLerpSpeed);
 
         if (inP1.shoot) this.shootGun(this.players[0]);
         if (inP2.shoot) this.shootGun(this.players[1]);
 
         for (let i = this.bullets.length - 1; i >= 0; i--) {
             const b = this.bullets[i];
-            b.update(dt, this.map.segments, this.players, this.particleSystem, this.audioEngine);
+            b.update(effectiveDt, this.map.segments, this.players, this.particleSystem, this.audioEngine);
             if (!b.alive) {
                 this.bullets.splice(i, 1);
             }
         }
 
-        this.particleSystem.update(dt);
+        this.particleSystem.update(effectiveDt);
+
+        // Score animation detection
+        if (this.players[0].score !== this.prevScoreP1) {
+            this.scoreAnimP1 = 1.0;
+            this.prevScoreP1 = this.players[0].score;
+        }
+        if (this.players[1].score !== this.prevScoreP2) {
+            this.scoreAnimP2 = 1.0;
+            this.prevScoreP2 = this.players[1].score;
+        }
+        if (this.scoreAnimP1 > 0) this.scoreAnimP1 -= effectiveDt * 3;
+        if (this.scoreAnimP2 > 0) this.scoreAnimP2 -= effectiveDt * 3;
+
+        // Heartbeat when low HP
+        this.heartbeatTimer -= effectiveDt;
+        if (this.heartbeatTimer <= 0) {
+            if (this.players[0].hp > 0 && this.players[0].hp <= 30) {
+                this.audioEngine.playHeartbeat();
+            }
+            if (this.players[1].hp > 0 && this.players[1].hp <= 30) {
+                this.audioEngine.playHeartbeat();
+            }
+            this.heartbeatTimer = 0.8;
+        }
+
+        // Kill feed decay
+        for (let i = this.killFeedEntries.length - 1; i >= 0; i--) {
+            this.killFeedEntries[i].life -= effectiveDt;
+            if (this.killFeedEntries[i].life <= 0) {
+                this.killFeedEntries.splice(i, 1);
+            }
+        }
 
         if (this.players[0].hp <= 0) {
             this.players[1].score++;
@@ -1423,7 +1719,10 @@ class CandelaGame {
     }
 
     triggerRoundEnd(winner, desc) {
+        this.slowMotionTimer = 0.5;
+        this.audioEngine.stopAmbientDrone();
         this.gameState = 'VICTORY';
+        this.victoryDelayTimer = 2.5; // 2.5s delay before modal appears
         this.p1Ready = false;
         this.p2Ready = false;
         this.p1HoldTimer = 0;
@@ -1447,8 +1746,6 @@ class CandelaGame {
         descEl.textContent = desc;
         document.getElementById('modal-p1-score').textContent = this.players[0].score;
         document.getElementById('modal-p2-score').textContent = this.players[1].score;
-
-        modal.classList.remove('hidden');
     }
 
     updateGamepadStatusUI(gp1, gp2) {
@@ -1480,6 +1777,12 @@ class CandelaGame {
     render() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
+        if (this.gameState === 'VICTORY') {
+            this.renderKillcam();
+            this.renderKillFeed();
+            return;
+        }
+
         const w = this.canvas.width / 2;
         const h = this.canvas.height;
 
@@ -1503,6 +1806,63 @@ class CandelaGame {
 
         // Update HUD Gauges
         this.renderHUD();
+    }
+
+    renderKillcam() {
+        const vw = this.canvas.width;
+        const vh = this.canvas.height;
+        this.ctx.save();
+
+        // Fit map into screen (with 95% margin)
+        const scaleX = vw / this.map.width;
+        const scaleY = vh / this.map.height;
+        const scale = Math.min(scaleX, scaleY) * 0.95;
+
+        const mapPixelW = this.map.width * scale;
+        const mapPixelH = this.map.height * scale;
+
+        const offsetX = (vw - mapPixelW) / 2;
+        const offsetY = (vh - mapPixelH) / 2;
+
+        this.ctx.translate(offsetX, offsetY);
+        this.ctx.scale(scale, scale);
+
+        // 1. Draw Floor Grid over entire map
+        this.drawFloorGrid(0, 0, this.map.width, this.map.height);
+
+        // 1b. Draw bullet decals
+        this.ctx.save();
+        for (let i = 0; i < this.bulletDecals.length; i++) {
+            const d = this.bulletDecals[i];
+            this.ctx.globalAlpha = d.alpha * 0.5;
+            this.ctx.fillStyle = '#1a1a2e';
+            this.ctx.beginPath();
+            this.ctx.arc(d.x, d.y, d.size, 0, Math.PI * 2);
+            this.ctx.fill();
+        }
+        this.ctx.restore();
+
+        // 1c. Draw ambient particles
+        this.ambientParticles.draw(this.ctx);
+
+        // 2. Draw Map Obstacles
+        this.drawMapObstacles();
+
+        // 3. Draw Bullets & Particles
+        for (let i = 0; i < this.bullets.length; i++) {
+            this.drawBullet(this.bullets[i]);
+        }
+        this.particleSystem.draw(this.ctx);
+
+        // 4. Draw Both Players (force revealed)
+        this.drawPlayerAvatar(this.players[0], false, true);
+        this.drawPlayerAvatar(this.players[1], false, true);
+
+        // 5. Brighten the map slightly to look like daytime/revealed
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+        this.ctx.fillRect(0, 0, this.map.width, this.map.height);
+
+        this.ctx.restore();
     }
 
     getPlayerSegments(player) {
@@ -1538,14 +1898,35 @@ class CandelaGame {
             shakeY = (Math.random() - 0.5) * viewer.screenShake * 12;
         }
 
-        // Camera Offset
-        const camX = viewer.x - vw / 2 + shakeX;
-        const camY = viewer.y - vh / 2 + shakeY;
+        // Camera Offset (smooth lerped)
+        const camIdx = viewer.id;
+        const smoothCamX = this.cam[camIdx] ? this.cam[camIdx].x : viewer.x;
+        const smoothCamY = this.cam[camIdx] ? this.cam[camIdx].y : viewer.y;
+        const punchScale = 1.0 + viewer.punchZoom * 0.03;
+        const camX = smoothCamX - vw / 2 + shakeX;
+        const camY = smoothCamY - vh / 2 + shakeY;
 
-        this.ctx.translate(vx - camX, vy - camY);
+        this.ctx.translate(vx + vw / 2, vy + vh / 2);
+        this.ctx.scale(punchScale, punchScale);
+        this.ctx.translate(-vw / 2 - camX, -vh / 2 - camY);
 
         // 1. Draw Floor Grid
         this.drawFloorGrid(camX, camY, vw, vh);
+
+        // 1b. Draw bullet decals
+        this.ctx.save();
+        for (let i = 0; i < this.bulletDecals.length; i++) {
+            const d = this.bulletDecals[i];
+            this.ctx.globalAlpha = d.alpha * 0.5;
+            this.ctx.fillStyle = '#1a1a2e';
+            this.ctx.beginPath();
+            this.ctx.arc(d.x, d.y, d.size, 0, Math.PI * 2);
+            this.ctx.fill();
+        }
+        this.ctx.restore();
+
+        // 1c. Draw ambient particles
+        this.ambientParticles.draw(this.ctx);
 
         // 2. Compute Visibility Light Polygons (Including opponent obstacle segments for dynamic player shadows!)
         let viewerLightPoly = null;
@@ -1566,11 +1947,16 @@ class CandelaGame {
             );
         }
 
-        // 3. DARKNESS FOG LAYER (Canvas Composite Operation)
-        const offCanvas = document.createElement('canvas');
-        offCanvas.width = vw;
-        offCanvas.height = vh;
-        const offCtx = offCanvas.getContext('2d');
+        // 3. DARKNESS FOG LAYER - Reuse pre-allocated canvas for performance
+        if (!this.fogCanvas || this.fogCanvas.width !== vw || this.fogCanvas.height !== vh) {
+            this.fogCanvas = document.createElement('canvas');
+            this.fogCanvas.width = vw;
+            this.fogCanvas.height = vh;
+            this.fogCtx = this.fogCanvas.getContext('2d');
+        }
+        const offCanvas = this.fogCanvas;
+        const offCtx = this.fogCtx;
+        offCtx.clearRect(0, 0, vw, vh);
 
         // Fill pitch black
         offCtx.fillStyle = 'rgba(4, 7, 14, 0.88)';
@@ -1670,6 +2056,28 @@ class CandelaGame {
             this.drawPlayerAvatar(viewer, false);
         }
 
+        // Vignette flash overlay when hit
+        if (viewer.vignetteFlash > 0) {
+            this.ctx.save();
+            const vigGrad = this.ctx.createRadialGradient(
+                smoothCamX, smoothCamY, vw * 0.2,
+                smoothCamX, smoothCamY, vw * 0.7
+            );
+            vigGrad.addColorStop(0, 'rgba(255, 0, 50, 0)');
+            vigGrad.addColorStop(1, `rgba(255, 0, 50, ${viewer.vignetteFlash * 0.5})`);
+            this.ctx.fillStyle = vigGrad;
+            this.ctx.fillRect(camX, camY, vw, vh);
+            this.ctx.restore();
+        }
+
+        // Round fade-in overlay
+        if (this.roundFadeIn > 0) {
+            this.ctx.save();
+            this.ctx.fillStyle = `rgba(0, 0, 0, ${this.roundFadeIn})`;
+            this.ctx.fillRect(camX, camY, vw, vh);
+            this.ctx.restore();
+        }
+
         this.ctx.restore();
     }
 
@@ -1724,10 +2132,24 @@ class CandelaGame {
         const startX = Math.floor(camX / tileSize) * tileSize;
         const startY = Math.floor(camY / tileSize) * tileSize;
 
-        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+        // Alternating floor tiles for depth
+        this.ctx.save();
+        for (let x = startX; x < camX + vw + tileSize; x += tileSize) {
+            for (let y = startY; y < camY + vh + tileSize; y += tileSize) {
+                const tx = Math.floor(x / tileSize);
+                const ty = Math.floor(y / tileSize);
+                if ((tx + ty) % 2 === 0) {
+                    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.012)';
+                    this.ctx.fillRect(x, y, tileSize, tileSize);
+                }
+            }
+        }
+        this.ctx.restore();
+
+        // Grid lines
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.035)';
         this.ctx.lineWidth = 1;
         this.ctx.beginPath();
-
         for (let x = startX; x < camX + vw + tileSize; x += tileSize) {
             this.ctx.moveTo(x, camY);
             this.ctx.lineTo(x, camY + vh);
@@ -1738,13 +2160,23 @@ class CandelaGame {
         }
         this.ctx.stroke();
 
-        // Soft tactical ambient glows in arena center and corners
+        // Soft tactical ambient glows
         this.ctx.save();
         const centerGlow = this.ctx.createRadialGradient(700, 700, 20, 700, 700, 500);
-        centerGlow.addColorStop(0, 'rgba(0, 240, 255, 0.04)');
+        centerGlow.addColorStop(0, 'rgba(0, 240, 255, 0.05)');
         centerGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
         this.ctx.fillStyle = centerGlow;
         this.ctx.fillRect(200, 200, 1000, 1000);
+
+        // Corner ambient glows
+        const corners = [[100, 100], [1300, 100], [100, 1300], [1300, 1300]];
+        for (const [cx, cy] of corners) {
+            const glow = this.ctx.createRadialGradient(cx, cy, 10, cx, cy, 200);
+            glow.addColorStop(0, 'rgba(255, 183, 0, 0.025)');
+            glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            this.ctx.fillStyle = glow;
+            this.ctx.fillRect(cx - 200, cy - 200, 400, 400);
+        }
         this.ctx.restore();
     }
 
@@ -1752,6 +2184,10 @@ class CandelaGame {
         if (!player.flashlightOn || !lightPoly || lightPoly.length === 0) return;
 
         this.ctx.save();
+        // Subtle flicker
+        const flickerAlpha = 0.88 + Math.random() * 0.12;
+        this.ctx.globalAlpha = flickerAlpha;
+
         const grad = this.ctx.createRadialGradient(
             player.x, player.y, 10,
             player.x, player.y, player.flashlightRange
@@ -1809,12 +2245,12 @@ class CandelaGame {
         this.ctx.restore();
     }
 
-    drawPlayerAvatar(player, isOpponent = false) {
+    drawPlayerAvatar(player, isOpponent = false, forceReveal = false) {
         this.ctx.save();
 
-        const isRevealed = (player.id === 0) ? 
+        const isRevealed = forceReveal || ((player.id === 0) ? 
             this.checkIsOpponentLit(this.players[1], this.players[0], null, null) :
-            this.checkIsOpponentLit(this.players[0], this.players[1], null, null);
+            this.checkIsOpponentLit(this.players[0], this.players[1], null, null));
 
         // When character is hidden in shadows, set avatar opacity to 20% (stealth ghost appearance)
         // When revealed (flashlight ON, illuminated, or shooting), opacity becomes 100% full vibrant neon!
@@ -1858,15 +2294,43 @@ class CandelaGame {
         this.ctx.lineTo(bx, by);
         this.ctx.stroke();
 
-        // Muzzle Flash Light Flare
+        // Muzzle Flash Light Flare (Star burst)
         if (player.lastMuzzleFlash > 0) {
             const flashRatio = player.lastMuzzleFlash / 0.5;
-            this.ctx.fillStyle = '#fff7b8';
+            this.ctx.save();
+            this.ctx.translate(bx, by);
+
+            // Outer glow
+            this.ctx.fillStyle = `rgba(255, 234, 0, ${flashRatio * 0.4})`;
             this.ctx.shadowColor = '#ffea00';
-            this.ctx.shadowBlur = 24 * flashRatio;
+            this.ctx.shadowBlur = 30 * flashRatio;
             this.ctx.beginPath();
-            this.ctx.arc(bx, by, 6 + 10 * flashRatio, 0, Math.PI * 2);
+            this.ctx.arc(0, 0, 12 + 16 * flashRatio, 0, Math.PI * 2);
             this.ctx.fill();
+
+            // 4-point star burst
+            this.ctx.fillStyle = '#fff7b8';
+            this.ctx.shadowBlur = 20 * flashRatio;
+            this.ctx.beginPath();
+            const starSize = (8 + 14 * flashRatio);
+            const starInner = starSize * 0.3;
+            for (let i = 0; i < 8; i++) {
+                const a = (i / 8) * Math.PI * 2 + player.angle;
+                const r = i % 2 === 0 ? starSize : starInner;
+                if (i === 0) this.ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+                else this.ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+            }
+            this.ctx.closePath();
+            this.ctx.fill();
+
+            // White hot center
+            this.ctx.fillStyle = '#ffffff';
+            this.ctx.shadowBlur = 0;
+            this.ctx.beginPath();
+            this.ctx.arc(0, 0, 3 * flashRatio, 0, Math.PI * 2);
+            this.ctx.fill();
+
+            this.ctx.restore();
         }
 
         // Reset globalAlpha to 1.0 for name tag and health bar so text stays clear
@@ -1932,11 +2396,64 @@ class CandelaGame {
             p2StealthInd.querySelector('.indicator-text').textContent = isP2Revealed ? 'DÉVOILÉ' : 'CACHÉ';
         }
 
-        // Timer
+        // Timer with urgency colors
         const mins = Math.floor(Math.max(0, this.roundTimer) / 60);
         const secs = Math.floor(Math.max(0, this.roundTimer) % 60);
-        document.getElementById('round-timer').textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        const timerEl = document.getElementById('round-timer');
+        timerEl.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        
+        if (this.roundTimer <= 10) {
+            timerEl.style.color = '#ff0055';
+            timerEl.style.textShadow = '0 0 15px rgba(255, 0, 85, 0.8)';
+            timerEl.classList.add('timer-critical');
+        } else if (this.roundTimer <= 30) {
+            timerEl.style.color = '#ffb700';
+            timerEl.style.textShadow = '0 0 10px rgba(255, 183, 0, 0.5)';
+            timerEl.classList.remove('timer-critical');
+        } else {
+            timerEl.style.color = '#ffffff';
+            timerEl.style.textShadow = 'none';
+            timerEl.classList.remove('timer-critical');
+        }
+
         document.getElementById('round-counter').textContent = `ROUND ${this.currentRound}`;
+
+        // Ghost HP bars
+        const p1GhostBar = document.getElementById('p1-hp-ghost');
+        if (p1GhostBar) p1GhostBar.style.width = `${Math.max(0, this.players[0].ghostHp)}%`;
+        const p2GhostBar = document.getElementById('p2-hp-ghost');
+        if (p2GhostBar) p2GhostBar.style.width = `${Math.max(0, this.players[1].ghostHp)}%`;
+
+        // HP bar low health pulse
+        const p1HpWrap = document.querySelector('#p1-hud .health-bar-wrap');
+        const p2HpWrap = document.querySelector('#p2-hud .health-bar-wrap');
+        if (p1HpWrap) p1HpWrap.classList.toggle('hp-critical', this.players[0].hp > 0 && this.players[0].hp <= 30);
+        if (p2HpWrap) p2HpWrap.classList.toggle('hp-critical', this.players[1].hp > 0 && this.players[1].hp <= 30);
+
+        // Score animation
+        const p1ScoreEl = document.getElementById('p1-score');
+        const p2ScoreEl = document.getElementById('p2-score');
+        if (this.scoreAnimP1 > 0) {
+            p1ScoreEl.style.transform = `scale(${1 + this.scoreAnimP1 * 0.3})`;
+            p1ScoreEl.style.color = '#00ff88';
+            p1ScoreEl.style.textShadow = '0 0 12px rgba(0, 255, 136, 0.6)';
+        } else {
+            p1ScoreEl.style.transform = 'scale(1)';
+            p1ScoreEl.style.color = '#fff';
+            p1ScoreEl.style.textShadow = 'none';
+        }
+        if (this.scoreAnimP2 > 0) {
+            p2ScoreEl.style.transform = `scale(${1 + this.scoreAnimP2 * 0.3})`;
+            p2ScoreEl.style.color = '#00ff88';
+            p2ScoreEl.style.textShadow = '0 0 12px rgba(0, 255, 136, 0.6)';
+        } else {
+            p2ScoreEl.style.transform = 'scale(1)';
+            p2ScoreEl.style.color = '#fff';
+            p2ScoreEl.style.textShadow = 'none';
+        }
+
+        // Kill feed rendering
+        this.renderKillFeed();
     }
 
     loop(timestamp) {
@@ -1947,6 +2464,31 @@ class CandelaGame {
         this.render();
 
         requestAnimationFrame((t) => this.loop(t));
+    }
+
+    addKillFeedEntry(text, color) {
+        this.killFeedEntries.push({ text, color, life: 3.0 });
+        if (this.killFeedEntries.length > 5) this.killFeedEntries.shift();
+    }
+
+    renderKillFeed() {
+        const container = document.getElementById('kill-feed');
+        if (!container) return;
+
+        container.innerHTML = '';
+        for (let i = 0; i < this.killFeedEntries.length; i++) {
+            const entry = this.killFeedEntries[i];
+            const el = document.createElement('div');
+            el.className = 'kill-feed-entry';
+            el.textContent = entry.text;
+            el.style.color = entry.color;
+            el.style.borderLeftColor = entry.color;
+            el.style.opacity = Math.min(1, entry.life);
+            if (entry.life > 2.5) {
+                el.style.transform = `translateY(${(1 - (3 - entry.life) * 2) * -20}px)`;
+            }
+            container.appendChild(el);
+        }
     }
 }
 
