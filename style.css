@@ -543,6 +543,11 @@ html, body {
 }
 
 /* Victory Modal Specifics */
+#victory-modal {
+    background: rgba(4, 6, 12, 0.4);
+    backdrop-filter: blur(4px);
+}
+
 .victory-card h2 {
     font-family: var(--font-heading);
     font-size: 26px;

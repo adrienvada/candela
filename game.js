@@ -317,6 +317,7 @@ class InputManager {
         let aimAngle = null;
         let shoot = false;
         let light = false;
+        let sprint = false;
 
         // 1. GAMEPAD INPUT PROCESSING
         if (gp) {
@@ -358,6 +359,14 @@ class InputManager {
 
             light = ltVal > 0.2 || (gp.buttons[4] && (gp.buttons[4].pressed || gp.buttons[4] === 1)); // LT or LB
             shoot = rtVal > 0.2 || (gp.buttons[5] && (gp.buttons[5].pressed || gp.buttons[5] === 1)); // RT or RB
+            
+            // Sprint: any face button [0,1,2,3]
+            for (let i = 0; i < 4; i++) {
+                if (gp.buttons[i] && (gp.buttons[i].pressed || gp.buttons[i] === 1)) {
+                    sprint = true;
+                    break;
+                }
+            }
         }
 
         // 2. KEYBOARD & MOUSE FALLBACK (ONLY IF NO GAMEPAD OR IF MOUSE ACTIVELY USED AND RIGHT STICK IDLE)
@@ -386,6 +395,7 @@ class InputManager {
             if (!gp) {
                 if (this.mouseButtons.left) shoot = true;
                 if (this.mouseButtons.right || this.keys['Space']) light = true;
+                if (this.keys['ShiftLeft'] || this.keys['ShiftRight']) sprint = true;
             }
         } else if (playerIndex === 1 && !gp) {
             // P2 Keyboard Controls (Arrows + IJKL Aim + O/P)
@@ -406,9 +416,10 @@ class InputManager {
 
             if (this.keys['KeyO'] || this.keys['Numpad0']) shoot = true;
             if (this.keys['KeyP'] || this.keys['NumpadControl']) light = true;
+            if (this.keys['KeyM'] || this.keys['ShiftRight']) sprint = true;
         }
 
-        return { moveX, moveY, aimAngle, shoot, light, hasGamepad: !!gp };
+        return { moveX, moveY, aimAngle, shoot, light, sprint, hasGamepad: !!gp };
     }
 
     isAnyButtonHeld(playerIndex) {
@@ -671,8 +682,8 @@ class Player {
 
         this.speed = 260; // px/sec
         this.flashlightOn = false;
-        this.flashlightFov = Math.PI * 0.42; // ~75 degrees
-        this.flashlightRange = 480;
+        this.flashlightFov = Math.PI * 0.25; // ~45 degrees (narrower beam)
+        this.flashlightRange = 750; // increased range
 
         this.shootCooldown = 0; // Cooldown timer (1.0s max)
         this.maxCooldown = 1.0;
@@ -721,9 +732,21 @@ class Player {
             if (this.screenShake < 0) this.screenShake = 0;
         }
 
+        // Sprint logic
+        let currentSpeed = this.speed;
+        let isMoving = input.moveX !== 0 || input.moveY !== 0;
+        this.isSprinting = input.sprint && isMoving && this.hp > 0;
+
+        if (this.isSprinting) {
+            currentSpeed *= 2;
+            this.flashlightOn = false; // Disable light while sprinting
+        } else {
+            this.flashlightOn = input.light && this.hp > 0;
+        }
+
         // Movement
-        this.vx = input.moveX * this.speed;
-        this.vy = input.moveY * this.speed;
+        this.vx = input.moveX * currentSpeed;
+        this.vy = input.moveY * currentSpeed;
 
         // Apply movement physics with wall collision
         const nextX = this.x + this.vx * dt;
@@ -961,14 +984,23 @@ class ParticleSystem {
         });
     }
 
-    addLaserTracer(x1, y1, x2, y2, color) {
+    addBulletTracer(x1, y1, x2, y2, color) {
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const dist = Math.hypot(dx, dy) || 1; // Prevent div by 0
+        
         this.particles.push({
             x1: x1, y1: y1,
             x2: x2, y2: y2,
-            life: 1.0,
-            decay: 5.0, // Fades over ~200ms
+            dx: dx / dist,
+            dy: dy / dist,
+            totalDist: dist,
+            progress: 0.0,
+            speed: 25.0, // Tracer speed multiplier
+            tailLength: 180, // Length of the segment in px
             color: color,
-            isLaser: true
+            isBulletTracer: true,
+            life: 1.0
         });
     }
 
@@ -989,11 +1021,20 @@ class ParticleSystem {
     update(dt) {
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
-            p.x = (p.x || 0) + (p.vx || 0) * dt;
-            p.y = (p.y || 0) + (p.vy || 0) * dt;
-            p.life -= p.decay * dt;
-            if (p.life <= 0) {
-                this.particles.splice(i, 1);
+            
+            if (p.isBulletTracer) {
+                p.progress += p.speed * dt;
+                const maxProgress = 1.0 + (p.tailLength / p.totalDist);
+                if (p.progress >= maxProgress) {
+                    this.particles.splice(i, 1);
+                }
+            } else {
+                p.x = (p.x || 0) + (p.vx || 0) * dt;
+                p.y = (p.y || 0) + (p.vy || 0) * dt;
+                p.life -= p.decay * dt;
+                if (p.life <= 0) {
+                    this.particles.splice(i, 1);
+                }
             }
         }
     }
@@ -1003,26 +1044,34 @@ class ParticleSystem {
             const p = this.particles[i];
             ctx.globalAlpha = Math.max(0, p.life);
 
-            if (p.isLaser) {
+            if (p.isBulletTracer) {
                 ctx.save();
                 ctx.strokeStyle = p.color;
-                ctx.lineWidth = 5;
+                ctx.lineWidth = 4;
                 ctx.shadowColor = p.color;
-                ctx.shadowBlur = 18;
+                ctx.shadowBlur = 12;
                 ctx.lineCap = 'round';
-                ctx.beginPath();
-                ctx.moveTo(p.x1, p.y1);
-                ctx.lineTo(p.x2, p.y2);
-                ctx.stroke();
+                
+                const headDist = Math.min(p.totalDist, p.progress * p.totalDist);
+                const tailDist = Math.max(0, p.progress * p.totalDist - p.tailLength);
+                
+                if (headDist > tailDist) {
+                    const hx = p.x1 + p.dx * headDist;
+                    const hy = p.y1 + p.dy * headDist;
+                    const tx = p.x1 + p.dx * tailDist;
+                    const ty = p.y1 + p.dy * tailDist;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(tx, ty);
+                    ctx.lineTo(hx, hy);
+                    ctx.stroke();
 
-                // Inner white laser core
-                ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 2;
-                ctx.shadowBlur = 0;
-                ctx.beginPath();
-                ctx.moveTo(p.x1, p.y1);
-                ctx.lineTo(p.x2, p.y2);
-                ctx.stroke();
+                    // Inner white core
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2;
+                    ctx.shadowBlur = 0;
+                    ctx.stroke();
+                }
                 ctx.restore();
             } else if (p.isText) {
                 ctx.save();
@@ -1122,6 +1171,7 @@ class ReplaySystem {
                     id: p.id, name: p.name, color: p.color, radius: p.radius,
                     x: p.x, y: p.y, angle: p.angle, hp: p.hp,
                     flashlightOn: p.flashlightOn, lastMuzzleFlash: p.lastMuzzleFlash,
+                    flashlightRange: p.flashlightRange, flashlightFov: p.flashlightFov,
                     screenShake: p.screenShake, punchZoom: p.punchZoom, vignetteFlash: p.vignetteFlash
                 })),
                 bullets: game.bullets.map(b => ({
@@ -1275,6 +1325,10 @@ class CandelaGame {
         this.slowMotionTimer = 0;
         this.cam[0] = { x: 200, y: 200 };
         this.cam[1] = { x: 1200, y: 1200 };
+        
+        this.replaySystem.reset();
+        this.replayTimer = 0;
+        this.currentReplaySnapshot = null;
 
         // Start ambient drone
         this.audioEngine.playAmbientDrone();
@@ -1317,10 +1371,10 @@ class CandelaGame {
 
         const shotSegment = { p1: { x: startX, y: startY }, p2: wallHitPoint };
 
-        // 2. Check ALL opponent players against this full shotSegment with a generous 48px hitbox!
         let hitOpponent = null;
         let minOppDist = Infinity;
         let oppImpactPoint = null;
+        let oppHitDamage = 0;
 
         for (let i = 0; i < this.players.length; i++) {
             const target = this.players[i];
@@ -1336,6 +1390,12 @@ class CandelaGame {
                     minOppDist = distFromBarrel;
                     hitOpponent = target;
                     oppImpactPoint = closest;
+                    
+                    // Damage falloff: 100% at center, 25% at extreme edge.
+                    // Cubic falloff ensures it stays high near center then drops sharply.
+                    const normalizedDist = dist / generousHitbox;
+                    const multiplier = 0.25 + 0.75 * (1 - Math.pow(normalizedDist, 3));
+                    oppHitDamage = Math.floor(50 * multiplier);
                 }
             }
         }
@@ -1348,15 +1408,22 @@ class CandelaGame {
             finalImpactY = oppImpactPoint.y;
 
             // Apply Damage & Score!
-            hitOpponent.hp -= 50; // 2 shots to kill
+            hitOpponent.hp -= oppHitDamage; 
             hitOpponent.screenShake = 1.0;
             hitOpponent.punchZoom = 1.0;
             hitOpponent.vignetteFlash = 1.0;
             this.audioEngine.playHit();
 
-            player.score += 100;
-            this.particleSystem.addFloatingText(oppImpactPoint.x, oppImpactPoint.y - 15, '+100 TOUCHÉ !', player.color);
-            this.addKillFeedEntry(`${player.name} → TOUCHÉ !`, player.color);
+            const scoreGain = Math.max(10, oppHitDamage * 2);
+            player.score += scoreGain;
+            
+            // Show damage as floating text
+            let damageText = `-${oppHitDamage} HP`;
+            if (oppHitDamage >= 45) damageText = `CRITIQUE -${oppHitDamage}`;
+            else if (oppHitDamage <= 20) damageText = `ÉRAFLURE -${oppHitDamage}`;
+            
+            this.particleSystem.addFloatingText(oppImpactPoint.x, oppImpactPoint.y - 15, damageText, player.color);
+            this.addKillFeedEntry(`${player.name} → ${damageText}`, player.color);
 
             if (hitOpponent.hp <= 0) {
                 player.score += 500;
@@ -1378,8 +1445,8 @@ class CandelaGame {
             if (this.bulletDecals.length > 50) this.bulletDecals.shift();
         }
 
-        // Add glowing laser tracer beam particle across full trajectory
-        this.particleSystem.addLaserTracer(startX, startY, finalImpactX, finalImpactY, player.color);
+        // Add visual fast tracer
+        this.particleSystem.addBulletTracer(startX, startY, finalImpactX, finalImpactY, player.color);
 
         this.audioEngine.playShoot();
     }
@@ -1543,13 +1610,63 @@ class CandelaGame {
                 if (this.killFeedEntries[i].life <= 0) this.killFeedEntries.splice(i, 1);
             }
 
-            if (this.victoryDelayTimer > 0) {
-                this.victoryDelayTimer -= dt;
-                if (this.victoryDelayTimer <= 0) {
-                    const modal = document.getElementById('victory-modal');
-                    if (modal) modal.classList.remove('hidden');
+            // Post-mortem recording to let the bullet tracer travel and blood splatter
+            if (this.postMortemTimer !== undefined && this.postMortemTimer > 0) {
+                this.postMortemTimer -= dt;
+                this.replaySystem.recordFrame(dt, this);
+
+                if (this.postMortemTimer <= 0) {
+                    // Setup replay now that we have the final aftermath frames
+                    this.replayStartFrame = Math.max(0, this.replaySystem.frames.length - 120);
+                    this.replayCurrentFrame = this.replayStartFrame;
+                    this.replayFinished = false;
+                    this.freezeTimer = 1.0; // 1 second freeze before modal appears
+                }
+                return; // Do not process playback yet
+            }
+
+            // Replay Playback Logic (Variable speed and freeze)
+            if (this.replaySystem.frames.length > 0) {
+                if (!this.replayFinished) {
+                    const totalFrames = this.replaySystem.frames.length - 1;
+                    const framesLeft = totalFrames - this.replayCurrentFrame;
+                    
+                    // Slow down to 0.25x speed during the last 0.5s of action (30 frames)
+                    const speed = framesLeft <= 30 ? 0.25 : 1.0;
+                    
+                    if (framesLeft <= 30) {
+                        this.killcamZoomProgress = 1.0 - (framesLeft / 30);
+                    } else {
+                        this.killcamZoomProgress = 0.0;
+                    }
+                    
+                    this.replayCurrentFrame += (dt * 60) * speed;
+                    
+                    let frameIdx = Math.floor(this.replayCurrentFrame);
+                    if (frameIdx >= totalFrames) {
+                        frameIdx = totalFrames;
+                        this.replayFinished = true; // Freeze on impact!
+                        this.killcamZoomProgress = 1.0;
+                    }
+                    this.currentReplaySnapshot = this.replaySystem.frames[frameIdx];
+                } else {
+                    // Replay finished, waiting during freeze
+                    if (this.freezeTimer > 0) {
+                        this.freezeTimer -= dt;
+                        if (this.freezeTimer <= 0) {
+                            const modal = document.getElementById('victory-modal');
+                            if (modal) modal.classList.remove('hidden');
+                        }
+                    }
                 }
             } else {
+                this.replayFinished = true;
+                this.freezeTimer = 0;
+                const modal = document.getElementById('victory-modal');
+                if (modal) modal.classList.remove('hidden');
+            }
+
+            if (this.replayFinished && this.freezeTimer <= 0) {
                 this.updateMenuCursors(dt);
                 this.updateVictoryReadyLoop(dt);
             }
@@ -1601,8 +1718,9 @@ class CandelaGame {
         this.cam[1].x += (this.players[1].x - this.cam[1].x) * Math.min(1, effectiveDt * this.camLerpSpeed);
         this.cam[1].y += (this.players[1].y - this.cam[1].y) * Math.min(1, effectiveDt * this.camLerpSpeed);
 
-        if (inP1.shoot) this.shootGun(this.players[0]);
-        if (inP2.shoot) this.shootGun(this.players[1]);
+        // SHOOTING logic happens manually here based on input (disabled if actively sprinting)
+        if (inP1.shoot && !this.players[0].isSprinting) this.shootGun(this.players[0]);
+        if (inP2.shoot && !this.players[1].isSprinting) this.shootGun(this.players[1]);
 
         for (let i = this.bullets.length - 1; i >= 0; i--) {
             const b = this.bullets[i];
@@ -1644,6 +1762,11 @@ class CandelaGame {
             if (this.killFeedEntries[i].life <= 0) {
                 this.killFeedEntries.splice(i, 1);
             }
+        }
+
+        // Record frame for killcam replay (record before death check to capture the fatal frame)
+        if (this.gameState === 'PLAYING') {
+            this.replaySystem.recordFrame(effectiveDt, this);
         }
 
         if (this.players[0].hp <= 0) {
@@ -1722,7 +1845,11 @@ class CandelaGame {
         this.slowMotionTimer = 0.5;
         this.audioEngine.stopAmbientDrone();
         this.gameState = 'VICTORY';
-        this.victoryDelayTimer = 2.5; // 2.5s delay before modal appears
+        
+        // Delay replay setup to let the bullet tracer and blood particles travel
+        this.postMortemTimer = 0.20; // 200ms
+        this.killcamZoomProgress = 0.0;
+
         this.p1Ready = false;
         this.p2Ready = false;
         this.p1HoldTimer = 0;
@@ -1813,24 +1940,57 @@ class CandelaGame {
         const vh = this.canvas.height;
         this.ctx.save();
 
-        // Fit map into screen (with 95% margin)
-        const scaleX = vw / this.map.width;
-        const scaleY = vh / this.map.height;
-        const scale = Math.min(scaleX, scaleY) * 0.95;
+        // Fit map into screen (global view)
+        const globalScale = Math.min(vw / this.map.width, vh / this.map.height) * 0.95;
+        const globalTargetX = this.map.width / 2;
+        const globalTargetY = this.map.height / 2;
 
-        const mapPixelW = this.map.width * scale;
-        const mapPixelH = this.map.height * scale;
+        let finalScale = globalScale;
+        let targetX = globalTargetX;
+        let targetY = globalTargetY;
 
-        const offsetX = (vw - mapPixelW) / 2;
-        const offsetY = (vh - mapPixelH) / 2;
+        const snap = this.currentReplaySnapshot;
+        if (snap && this.killcamZoomProgress !== undefined && this.killcamZoomProgress > 0) {
+            const p1 = snap.players[0];
+            const p2 = snap.players[1];
+            
+            // Calculate bounding box of players
+            const dx = Math.abs(p1.x - p2.x);
+            const dy = Math.abs(p1.y - p2.y);
+            const padding = 350; // px
+            let zoomScale = Math.min(vw / (dx + padding), vh / (dy + padding));
+            zoomScale = Math.min(zoomScale, globalScale * 3.5); // Max zoom is 3.5x global
+            zoomScale = Math.max(zoomScale, globalScale); // Ensure we don't zoom out
+            
+            // Cubic ease out
+            const t = this.killcamZoomProgress;
+            const ease = 1 - Math.pow(1 - t, 3);
+            
+            finalScale = globalScale + (zoomScale - globalScale) * ease;
+            
+            const zoomTargetX = (p1.x + p2.x) / 2;
+            const zoomTargetY = (p1.y + p2.y) / 2;
+            
+            targetX = globalTargetX + (zoomTargetX - globalTargetX) * ease;
+            targetY = globalTargetY + (zoomTargetY - globalTargetY) * ease;
+        }
+
+        const offsetX = (vw / 2) - (targetX * finalScale);
+        const offsetY = (vh / 2) - (targetY * finalScale);
 
         this.ctx.translate(offsetX, offsetY);
-        this.ctx.scale(scale, scale);
+        this.ctx.scale(finalScale, finalScale);
 
         // 1. Draw Floor Grid over entire map
         this.drawFloorGrid(0, 0, this.map.width, this.map.height);
 
-        // 1b. Draw bullet decals
+        // Use replay snapshot if available, otherwise fallback to live state
+        // snap is already declared above
+        const bulletsToDraw = snap ? snap.bullets : this.bullets;
+        const p1ToDraw = snap ? snap.players[0] : this.players[0];
+        const p2ToDraw = snap ? snap.players[1] : this.players[1];
+
+        // 1b. Draw bullet decals (we use live decals since they persist and look cool)
         this.ctx.save();
         for (let i = 0; i < this.bulletDecals.length; i++) {
             const d = this.bulletDecals[i];
@@ -1849,19 +2009,49 @@ class CandelaGame {
         this.drawMapObstacles();
 
         // 3. Draw Bullets & Particles
-        for (let i = 0; i < this.bullets.length; i++) {
-            this.drawBullet(this.bullets[i]);
+        for (let i = 0; i < bulletsToDraw.length; i++) {
+            this.drawBullet(bulletsToDraw[i]);
         }
-        this.particleSystem.draw(this.ctx);
+
+        if (snap) {
+            const liveParticles = this.particleSystem.particles;
+            this.particleSystem.particles = snap.particles;
+            this.particleSystem.draw(this.ctx);
+            this.particleSystem.particles = liveParticles;
+        } else {
+            this.particleSystem.draw(this.ctx);
+        }
+
+        // 3.5 Draw Flashlight Beams in Killcam
+        if (p1ToDraw.flashlightOn) {
+            const segsP1 = [...this.map.segments, ...this.getPlayerSegments(p2ToDraw)];
+            const p1LightPoly = RaycastEngine.calculateVisibilityPolygon(
+                p1ToDraw.x, p1ToDraw.y, p1ToDraw.flashlightRange, segsP1, p1ToDraw.angle, p1ToDraw.flashlightFov
+            );
+            this.drawFlashlightGlow(p1ToDraw, p1LightPoly);
+        }
+        if (p2ToDraw.flashlightOn) {
+            const segsP2 = [...this.map.segments, ...this.getPlayerSegments(p1ToDraw)];
+            const p2LightPoly = RaycastEngine.calculateVisibilityPolygon(
+                p2ToDraw.x, p2ToDraw.y, p2ToDraw.flashlightRange, segsP2, p2ToDraw.angle, p2ToDraw.flashlightFov
+            );
+            this.drawFlashlightGlow(p2ToDraw, p2LightPoly);
+        }
 
         // 4. Draw Both Players (force revealed)
-        this.drawPlayerAvatar(this.players[0], false, true);
-        this.drawPlayerAvatar(this.players[1], false, true);
+        this.drawPlayerAvatar(p1ToDraw, false, true);
+        this.drawPlayerAvatar(p2ToDraw, false, true);
 
         // 5. Brighten the map slightly to look like daytime/revealed
         this.ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
         this.ctx.fillRect(0, 0, this.map.width, this.map.height);
 
+        // 6. Draw "REPLAY" text in top left corner of the killcam
+        this.ctx.restore();
+        this.ctx.save();
+        this.ctx.fillStyle = 'rgba(255, 0, 0, 0.7)';
+        this.ctx.font = '800 24px Orbitron';
+        this.ctx.fillText("🔴 REPLAY", 30, 40);
         this.ctx.restore();
     }
 
@@ -1959,7 +2149,7 @@ class CandelaGame {
         offCtx.clearRect(0, 0, vw, vh);
 
         // Fill pitch black
-        offCtx.fillStyle = 'rgba(4, 7, 14, 0.88)';
+        offCtx.fillStyle = 'rgba(4, 7, 14, 1.0)';
         offCtx.fillRect(0, 0, vw, vh);
 
         offCtx.save();
@@ -2082,7 +2272,9 @@ class CandelaGame {
     }
 
     checkIsOpponentLit(viewer, opponent, viewerLightPoly, opponentLightPoly) {
-        if (!opponent || opponent.hp <= 0) return false;
+        if (!opponent || opponent.hp <= 0) return 0.0;
+
+        let revealFactor = 0.0;
 
         // 1. Is opponent inside Viewer's Flashlight Cone (with Line-of-Sight)?
         if (viewer.flashlightOn) {
@@ -2104,27 +2296,28 @@ class CandelaGame {
                             break;
                         }
                     }
-                    if (!wallBlocked) return true;
+                    if (!wallBlocked) revealFactor = 1.0;
                 }
             }
         }
 
         // 2. Is opponent's OWN Flashlight turned ON? (Self-betrayal!)
         if (opponent.flashlightOn) {
-            return true;
+            revealFactor = 1.0;
         }
 
-        // 3. Did opponent just fire a shot (Muzzle Flash)?
-        if (opponent.lastMuzzleFlash > 0) {
-            return true;
-        }
-
-        // 4. Is opponent within close proximity of viewer's feet halo?
+        // 3. Is opponent within close proximity of viewer's feet halo?
         if (Math.hypot(viewer.x - opponent.x, viewer.y - opponent.y) < 65) {
-            return true;
+            revealFactor = 1.0;
         }
 
-        return false;
+        // 4. Did opponent just fire a shot (Muzzle Flash)?
+        if (opponent.lastMuzzleFlash > 0) {
+            const flashFade = opponent.lastMuzzleFlash / 0.25; // Fades out over 0.25s
+            revealFactor = Math.max(revealFactor, flashFade);
+        }
+
+        return revealFactor;
     }
 
     drawFloorGrid(camX, camY, vw, vh) {
@@ -2229,6 +2422,7 @@ class CandelaGame {
             this.ctx.lineTo(s.p2.x, s.p2.y);
         }
         this.ctx.stroke();
+
         this.ctx.restore();
     }
 
@@ -2248,51 +2442,85 @@ class CandelaGame {
     drawPlayerAvatar(player, isOpponent = false, forceReveal = false) {
         this.ctx.save();
 
-        const isRevealed = forceReveal || ((player.id === 0) ? 
-            this.checkIsOpponentLit(this.players[1], this.players[0], null, null) :
-            this.checkIsOpponentLit(this.players[0], this.players[1], null, null));
-
-        // When character is hidden in shadows, set avatar opacity to 20% (stealth ghost appearance)
-        // When revealed (flashlight ON, illuminated, or shooting), opacity becomes 100% full vibrant neon!
-        if (!isRevealed && !isOpponent) {
-            this.ctx.globalAlpha = 0.20; // 20% opacity when hidden!
+        let revealAlpha = 0.0;
+        if (forceReveal) {
+            revealAlpha = 1.0;
         } else {
-            this.ctx.globalAlpha = 1.0;  // 100% full vibrant opacity when revealed!
+            revealAlpha = (player.id === 0) ? 
+                this.checkIsOpponentLit(this.players[1], this.players[0], null, null) :
+                this.checkIsOpponentLit(this.players[0], this.players[1], null, null);
         }
 
-        // Shadow / Feet
-        this.ctx.fillStyle = 'rgba(0,0,0,0.5)';
-        this.ctx.beginPath();
-        this.ctx.arc(player.x, player.y + 4, player.radius, 0, Math.PI * 2);
-        this.ctx.fill();
-
-        // Player Body Circle
-        this.ctx.fillStyle = isOpponent ? '#060810' : player.color;
-        this.ctx.shadowColor = player.color;
-        this.ctx.shadowBlur = isOpponent ? 18 : (isRevealed ? 18 : 2);
-        this.ctx.beginPath();
-        this.ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
-        this.ctx.fill();
-
-        // Inner Tactical Ring
-        this.ctx.strokeStyle = player.color;
-        this.ctx.lineWidth = isOpponent ? 3 : 2;
-        this.ctx.beginPath();
-        this.ctx.arc(player.x, player.y, player.radius - 3, 0, Math.PI * 2);
-        this.ctx.stroke();
-
-        // Gun Barrel / Directional Aim Line
         const barrelLen = player.radius + 14;
         const bx = player.x + Math.cos(player.angle) * barrelLen;
         const by = player.y + Math.sin(player.angle) * barrelLen;
 
-        this.ctx.strokeStyle = isOpponent ? player.color : '#ffffff';
-        this.ctx.lineWidth = 4;
-        this.ctx.lineCap = 'round';
-        this.ctx.beginPath();
-        this.ctx.moveTo(player.x, player.y);
-        this.ctx.lineTo(bx, by);
-        this.ctx.stroke();
+        if (!isOpponent) {
+            // When character is hidden in shadows, set avatar opacity to 20% (stealth ghost appearance)
+            this.ctx.globalAlpha = (revealAlpha > 0) ? 1.0 : 0.20;
+
+            // Shadow / Feet
+            this.ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            this.ctx.beginPath();
+            this.ctx.arc(player.x, player.y + 4, player.radius, 0, Math.PI * 2);
+            this.ctx.fill();
+
+            // Player Body Circle
+            this.ctx.fillStyle = player.color;
+            this.ctx.shadowColor = player.color;
+            this.ctx.shadowBlur = (revealAlpha > 0) ? 18 : 2;
+            this.ctx.beginPath();
+            this.ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+            this.ctx.fill();
+
+            // Inner Tactical Ring
+            this.ctx.strokeStyle = player.color;
+            this.ctx.lineWidth = 2;
+            this.ctx.beginPath();
+            this.ctx.arc(player.x, player.y, player.radius - 3, 0, Math.PI * 2);
+            this.ctx.stroke();
+
+            // Gun Barrel
+            this.ctx.strokeStyle = '#ffffff';
+            this.ctx.lineWidth = 4;
+            this.ctx.lineCap = 'round';
+            this.ctx.beginPath();
+            this.ctx.moveTo(player.x, player.y);
+            this.ctx.lineTo(bx, by);
+            this.ctx.stroke();
+
+        } else {
+            // Opponent Rendering Logic
+            if (revealAlpha <= 0) {
+                this.ctx.restore();
+                return; // Not visible at all
+            }
+
+            this.ctx.globalAlpha = revealAlpha; // Fade out effect!
+
+            // Draw pure black body (like decor)
+            this.ctx.fillStyle = '#0f172a';
+            this.ctx.shadowBlur = 0; // No glow
+            this.ctx.beginPath();
+            this.ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+            this.ctx.fill();
+
+            // Outline matches the walls/obstacles color
+            this.ctx.strokeStyle = '#334155';
+            this.ctx.lineWidth = 2;
+            this.ctx.beginPath();
+            this.ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+            this.ctx.stroke();
+
+            // Dark Gun Barrel
+            this.ctx.strokeStyle = '#334155';
+            this.ctx.lineWidth = 4;
+            this.ctx.lineCap = 'round';
+            this.ctx.beginPath();
+            this.ctx.moveTo(player.x, player.y);
+            this.ctx.lineTo(bx, by);
+            this.ctx.stroke();
+        }
 
         // Muzzle Flash Light Flare (Star burst)
         if (player.lastMuzzleFlash > 0) {
@@ -2333,26 +2561,28 @@ class CandelaGame {
             this.ctx.restore();
         }
 
-        // Reset globalAlpha to 1.0 for name tag and health bar so text stays clear
-        this.ctx.globalAlpha = 1.0;
+        if (!isOpponent) {
+            // Reset globalAlpha to 1.0 for name tag and health bar so text stays clear
+            this.ctx.globalAlpha = 1.0;
 
-        // Player Name Tag & Health Bar Overlay
-        this.ctx.shadowBlur = 0;
-        this.ctx.font = 'bold 11px Orbitron, sans-serif';
-        this.ctx.fillStyle = '#ffffff';
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText(player.name, player.x, player.y - player.radius - 12);
+            // Player Name Tag & Health Bar Overlay
+            this.ctx.shadowBlur = 0;
+            this.ctx.font = 'bold 11px Orbitron, sans-serif';
+            this.ctx.fillStyle = '#ffffff';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(player.name, player.x, player.y - player.radius - 12);
 
-        // Health bar above head
-        const barW = 36;
-        const barH = 4;
-        const barX = player.x - barW / 2;
-        const barY = player.y - player.radius - 8;
+            // Health bar above head
+            const barW = 36;
+            const barH = 4;
+            const barX = player.x - barW / 2;
+            const barY = player.y - player.radius - 8;
 
-        this.ctx.fillStyle = 'rgba(0,0,0,0.6)';
-        this.ctx.fillRect(barX, barY, barW, barH);
-        this.ctx.fillStyle = player.hp > 50 ? '#00ff88' : '#ff0055';
-        this.ctx.fillRect(barX, barY, (player.hp / 100) * barW, barH);
+            this.ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            this.ctx.fillRect(barX, barY, barW, barH);
+            this.ctx.fillStyle = player.hp > 50 ? '#00ff88' : '#ff0055';
+            this.ctx.fillRect(barX, barY, (player.hp / 100) * barW, barH);
+        }
 
         this.ctx.restore();
     }
