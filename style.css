@@ -624,10 +624,18 @@ html, body {
 }
 
 .btn-map.active {
-    background: rgba(0, 240, 255, 0.18);
-    border-color: var(--p1-color);
-    color: #00f0ff;
-    box-shadow: 0 0 12px rgba(0, 240, 255, 0.3);
+    background: linear-gradient(135deg, rgba(0, 240, 255, 0.25), rgba(0, 255, 136, 0.15));
+    border: 2px solid #00f0ff;
+    color: #ffffff;
+    font-weight: 800;
+    box-shadow: 0 0 20px rgba(0, 240, 255, 0.5), inset 0 0 10px rgba(0, 240, 255, 0.2);
+    transform: scale(1.03);
+}
+
+.btn-map.active::after {
+    content: " ✓";
+    color: #00ff88;
+    font-weight: 900;
 }
 
 /* Dual Controller Ready Badges */

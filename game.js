@@ -369,14 +369,14 @@ class InputManager {
             }
         }
 
-        // 2. KEYBOARD & MOUSE FALLBACK (ONLY IF NO GAMEPAD OR IF MOUSE ACTIVELY USED AND RIGHT STICK IDLE)
+        // 2. KEYBOARD & MOUSE FALLBACK
         if (playerIndex === 0) {
-            // Keyboard Movement for P1 (if stick not used)
+            // Keyboard Movement for P1 (WASD or Arrow keys if stick not used)
             if (moveX === 0 && moveY === 0) {
-                if (this.keys['KeyW']) moveY -= 1;
-                if (this.keys['KeyS']) moveY += 1;
-                if (this.keys['KeyA']) moveX -= 1;
-                if (this.keys['KeyD']) moveX += 1;
+                if (this.keys['KeyW'] || this.keys['ArrowUp']) moveY -= 1;
+                if (this.keys['KeyS'] || this.keys['ArrowDown']) moveY += 1;
+                if (this.keys['KeyA'] || this.keys['ArrowLeft']) moveX -= 1;
+                if (this.keys['KeyD'] || this.keys['ArrowRight']) moveX += 1;
 
                 if (moveX !== 0 && moveY !== 0) {
                     const norm = 1 / Math.sqrt(2);
@@ -385,7 +385,7 @@ class InputManager {
                 }
             }
 
-            // Mouse Aiming for P1 Viewport (only if right stick is not actively aiming OR if no gamepad connected)
+            // Mouse Aiming for P1 Viewport
             if (aimAngle === null && (this.mouseActive || !gp) && cameraViewport) {
                 const mouseWorldX = this.mousePos.x - cameraViewport.x + cameraViewport.camX - cameraViewport.width / 2;
                 const mouseWorldY = this.mousePos.y - cameraViewport.y + cameraViewport.camY - cameraViewport.height / 2;
@@ -397,12 +397,14 @@ class InputManager {
                 if (this.mouseButtons.right || this.keys['Space']) light = true;
                 if (this.keys['ShiftLeft'] || this.keys['ShiftRight']) sprint = true;
             }
-        } else if (playerIndex === 1 && !gp) {
+        } else if (playerIndex === 1) {
             // P2 Keyboard Controls (Arrows + IJKL Aim + O/P)
-            if (this.keys['ArrowUp']) moveY -= 1;
-            if (this.keys['ArrowDown']) moveY += 1;
-            if (this.keys['ArrowLeft']) moveX -= 1;
-            if (this.keys['ArrowRight']) moveX += 1;
+            if (moveX === 0 && moveY === 0) {
+                if (this.keys['ArrowUp']) moveY -= 1;
+                if (this.keys['ArrowDown']) moveY += 1;
+                if (this.keys['ArrowLeft']) moveX -= 1;
+                if (this.keys['ArrowRight']) moveX += 1;
+            }
 
             let aimX = 0, aimY = 0;
             if (this.keys['KeyI']) aimY -= 1;
@@ -414,12 +416,30 @@ class InputManager {
                 aimAngle = Math.atan2(aimY, aimX);
             }
 
-            if (this.keys['KeyO'] || this.keys['Numpad0']) shoot = true;
-            if (this.keys['KeyP'] || this.keys['NumpadControl']) light = true;
-            if (this.keys['KeyM'] || this.keys['ShiftRight']) sprint = true;
+            if (!gp) {
+                if (this.keys['KeyO'] || this.keys['Numpad0']) shoot = true;
+                if (this.keys['KeyP'] || this.keys['NumpadControl']) light = true;
+                if (this.keys['KeyM'] || this.keys['ShiftRight']) sprint = true;
+            }
         }
 
         return { moveX, moveY, aimAngle, shoot, light, sprint, hasGamepad: !!gp };
+    }
+
+    isSkipButtonHeld(playerIndex) {
+        this.update();
+        const gp = this.gamepads[playerIndex];
+
+        if (gp && gp.buttons && gp.buttons[0]) {
+            const btn = gp.buttons[0];
+            const pressed = typeof btn === 'object' ? (btn.pressed || btn.value > 0.15) : (btn === 1);
+            if (pressed) return true;
+        }
+
+        // Keyboard fallback: 'KeyX' or 'Space' or 'Enter'
+        if (this.keys['KeyX'] || this.keys['Space'] || this.keys['Enter']) return true;
+
+        return false;
     }
 
     isAnyButtonHeld(playerIndex) {
@@ -481,40 +501,64 @@ class TacticalMap {
     }
 
     generateProceduralCover() {
-        // Generates at most 1 obstacle element positioned with 100% rotational symmetry for P1 and P2!
         const cx = 700;
         const cy = 700;
 
-        const mode = Math.floor(Math.random() * 3);
+        // Generate 1 to 2 additional decor elements (each element is symmetric for P1 and P2)
+        const count = 1 + Math.floor(Math.random() * 2); // 1 or 2 decor groups
 
-        if (mode === 0) {
-            // Option 0: Single Central Square Obstacle / Pillar (Self-Symmetric)
-            const size = 90 + Math.floor(Math.random() * 50);
-            this.addRectObstacle(cx - size / 2, cy - size / 2, size, size);
-        } else if (mode === 1) {
-            // Option 1: Symmetric Pair of Crates (1 for P1 side, 1 for P2 side)
-            const rx = 360 + Math.floor(Math.random() * 220); // x between 360 and 580
-            const ry = 280 + Math.floor(Math.random() * 280); // y between 280 and 560
-            const w = 90 + Math.floor(Math.random() * 40);
-            const h = 90 + Math.floor(Math.random() * 40);
+        for (let k = 0; k < count; k++) {
+            const mode = Math.floor(Math.random() * 4);
 
-            // P1 side crate
-            this.addRectObstacle(rx, ry, w, h);
-            // P2 side symmetric twin crate
-            this.addRectObstacle(this.width - rx - w, this.height - ry - h, w, h);
-        } else {
-            // Option 2: Symmetric Pair of L-Walls (Rotated 180° across center)
-            const rx = 380 + Math.floor(Math.random() * 200);
-            const ry = 300 + Math.floor(Math.random() * 250);
-            const len = 130 + Math.floor(Math.random() * 40);
+            if (mode === 0) {
+                // Central Square Obstacle / Pillar (Self-Symmetric)
+                const size = 70 + Math.floor(Math.random() * 50);
+                const offsetX = (Math.random() - 0.5) * 160;
+                const offsetY = (Math.random() - 0.5) * 160;
+                this.addRectObstacle(cx - size / 2 + offsetX, cy - size / 2 + offsetY, size, size);
+                // Also add its 180° symmetric counterpart if not perfectly centered
+                if (Math.abs(offsetX) > 10 || Math.abs(offsetY) > 10) {
+                    this.addRectObstacle(cx - size / 2 - offsetX, cy - size / 2 - offsetY, size, size);
+                }
+            } else if (mode === 1) {
+                // Symmetric Pair of Crates (1 for P1 side, 1 for P2 side)
+                const rx = 250 + Math.floor(Math.random() * 320);
+                const ry = 220 + Math.floor(Math.random() * 320);
+                const w = 70 + Math.floor(Math.random() * 50);
+                const h = 70 + Math.floor(Math.random() * 50);
 
-            // P1 L-Wall
-            this.addWall(rx, ry, rx + len, ry);
-            this.addWall(rx, ry, rx, ry + len);
+                // P1 side crate
+                this.addRectObstacle(rx, ry, w, h);
+                // P2 side 180° rotationally symmetric twin crate
+                this.addRectObstacle(this.width - rx - w, this.height - ry - h, w, h);
+            } else if (mode === 2) {
+                // Symmetric Pair of L-Walls (Rotated 180° across center)
+                const rx = 300 + Math.floor(Math.random() * 260);
+                const ry = 250 + Math.floor(Math.random() * 280);
+                const len = 100 + Math.floor(Math.random() * 60);
 
-            // P2 Symmetric L-Wall
-            this.addWall(this.width - rx - len, this.height - ry, this.width - rx, this.height - ry);
-            this.addWall(this.width - rx, this.height - ry - len, this.width - rx, this.height - ry);
+                // P1 L-Wall
+                this.addWall(rx, ry, rx + len, ry);
+                this.addWall(rx, ry, rx, ry + len);
+
+                // P2 Symmetric L-Wall
+                this.addWall(this.width - rx - len, this.height - ry, this.width - rx, this.height - ry);
+                this.addWall(this.width - rx, this.height - ry - len, this.width - rx, this.height - ry);
+            } else {
+                // Symmetric Pair of Straight Barrier Walls (Rotated 180°)
+                const rx = 320 + Math.floor(Math.random() * 240);
+                const ry = 200 + Math.floor(Math.random() * 340);
+                const len = 110 + Math.floor(Math.random() * 70);
+                const isHorizontal = Math.random() > 0.5;
+
+                if (isHorizontal) {
+                    this.addWall(rx, ry, rx + len, ry);
+                    this.addWall(this.width - rx - len, this.height - ry, this.width - rx, this.height - ry);
+                } else {
+                    this.addWall(rx, ry, rx, ry + len);
+                    this.addWall(this.width - rx, this.height - ry - len, this.width - rx, this.height - ry);
+                }
+            }
         }
     }
 
@@ -1266,9 +1310,12 @@ class CandelaGame {
     }
 
     setupUI() {
-        document.getElementById('btn-start').addEventListener('click', () => {
-            this.startGameFromStartMenu();
-        });
+        const btnStart = document.getElementById('btn-start');
+        if (btnStart) {
+            btnStart.addEventListener('click', () => {
+                this.startGameFromStartMenu();
+            });
+        }
 
         // Map choice button handlers
         const btnKeep = document.getElementById('btn-keep-map');
@@ -1290,9 +1337,12 @@ class CandelaGame {
             });
         }
 
-        document.getElementById('btn-next-round').addEventListener('click', () => {
-            this.startNextRound();
-        });
+        const btnNext = document.getElementById('btn-next-round');
+        if (btnNext) {
+            btnNext.addEventListener('click', () => {
+                this.startNextRound();
+            });
+        }
     }
 
     startGameFromStartMenu() {
@@ -1383,17 +1433,17 @@ class CandelaGame {
             const closest = player.getClosestPointOnSegment(target.x, target.y, shotSegment.p1, shotSegment.p2);
             const dist = Math.hypot(target.x - closest.x, target.y - closest.y);
 
-            const generousHitbox = target.radius + 30; // ~48px total thick hit zone!
-            if (dist <= generousHitbox) {
+            const playerHitbox = target.radius; // Exact circle of the player
+            if (dist <= playerHitbox) {
                 const distFromBarrel = Math.hypot(closest.x - startX, closest.y - startY);
                 if (distFromBarrel < minOppDist) {
                     minOppDist = distFromBarrel;
                     hitOpponent = target;
                     oppImpactPoint = closest;
                     
-                    // Damage falloff: 100% at center, 25% at extreme edge.
-                    // Cubic falloff ensures it stays high near center then drops sharply.
-                    const normalizedDist = dist / generousHitbox;
+                    // Damage falloff: 100% at center, 25% at extreme edge of player radius.
+                    // Cubic falloff ensures it stays high near center then drops sharply towards the edge.
+                    const normalizedDist = dist / playerHitbox;
                     const multiplier = 0.25 + 0.75 * (1 - Math.pow(normalizedDist, 3));
                     oppHitDamage = Math.floor(50 * multiplier);
                 }
@@ -1452,65 +1502,35 @@ class CandelaGame {
     }
 
     updateMenuCursors(dt) {
-        const elP1Cursor = document.getElementById('cursor-p1');
-        const elP2Cursor = document.getElementById('cursor-p2');
-
-        if (this.gameState === 'PLAYING') {
-            if (elP1Cursor) elP1Cursor.classList.add('hidden');
-            if (elP2Cursor) elP2Cursor.classList.add('hidden');
-            return;
-        }
-
-        if (elP1Cursor) elP1Cursor.classList.remove('hidden');
-        if (elP2Cursor) elP2Cursor.classList.remove('hidden');
+        if (this.gameState !== 'VICTORY') return;
 
         const inP1 = this.inputManager.getPlayerInput(0, this.players[0], null);
         const inP2 = this.inputManager.getPlayerInput(1, this.players[1], null);
 
-        // Update P1 Cursor position
-        this.p1Cursor.x = Math.max(12, Math.min(window.innerWidth - 12, this.p1Cursor.x + inP1.moveX * this.cursorSpeed * dt));
-        this.p1Cursor.y = Math.max(12, Math.min(window.innerHeight - 12, this.p1Cursor.y + inP1.moveY * this.cursorSpeed * dt));
+        const btnKeep = document.getElementById('btn-keep-map');
+        const btnNew = document.getElementById('btn-new-map');
+        if (!btnKeep || !btnNew) return;
 
-        // Update P2 Cursor position
-        this.p2Cursor.x = Math.max(12, Math.min(window.innerWidth - 12, this.p2Cursor.x + inP2.moveX * this.cursorSpeed * dt));
-        this.p2Cursor.y = Math.max(12, Math.min(window.innerHeight - 12, this.p2Cursor.y + inP2.moveY * this.cursorSpeed * dt));
+        // Either player moving left or right toggles between map choices
+        const moveX = inP1.moveX || inP2.moveX;
+        if (!this.navCooldown) this.navCooldown = 0;
+        if (this.navCooldown > 0) this.navCooldown -= dt;
 
-        if (elP1Cursor) {
-            elP1Cursor.style.left = `${this.p1Cursor.x}px`;
-            elP1Cursor.style.top = `${this.p1Cursor.y}px`;
-        }
-        if (elP2Cursor) {
-            elP2Cursor.style.left = `${this.p2Cursor.x}px`;
-            elP2Cursor.style.top = `${this.p2Cursor.y}px`;
-        }
-
-        // P1 Virtual Click on UI Buttons
-        const p1Press = inP1.shoot || this.inputManager.isAnyButtonHeld(0);
-        if (p1Press && !this.p1ClickPrev) {
-            const targetP1 = document.elementFromPoint(this.p1Cursor.x, this.p1Cursor.y);
-            if (targetP1) {
-                const btn = targetP1.closest('button, .btn-primary, .btn-map');
-                if (btn) {
-                    btn.click();
-                    this.audioEngine.playTorchClick(true);
-                }
+        if (this.navCooldown <= 0) {
+            if (moveX < -0.4 && this.selectedMapType !== 'SQUARE') {
+                this.selectedMapType = 'SQUARE';
+                btnKeep.classList.add('active');
+                btnNew.classList.remove('active');
+                this.audioEngine.playTorchClick(true);
+                this.navCooldown = 0.25;
+            } else if (moveX > 0.4 && this.selectedMapType !== 'RANDOM') {
+                this.selectedMapType = 'RANDOM';
+                btnNew.classList.add('active');
+                btnKeep.classList.remove('active');
+                this.audioEngine.playTorchClick(true);
+                this.navCooldown = 0.25;
             }
         }
-        this.p1ClickPrev = p1Press;
-
-        // P2 Virtual Click on UI Buttons
-        const p2Press = inP2.shoot || this.inputManager.isAnyButtonHeld(1);
-        if (p2Press && !this.p2ClickPrev) {
-            const targetP2 = document.elementFromPoint(this.p2Cursor.x, this.p2Cursor.y);
-            if (targetP2) {
-                const btn = targetP2.closest('button, .btn-primary, .btn-map');
-                if (btn) {
-                    btn.click();
-                    this.audioEngine.playTorchClick(true);
-                }
-            }
-        }
-        this.p2ClickPrev = p2Press;
     }
 
     updateStartReadyLoop(dt) {
@@ -1627,7 +1647,18 @@ class CandelaGame {
 
             // Replay Playback Logic (Variable speed and freeze)
             if (this.replaySystem.frames.length > 0) {
-                if (!this.replayFinished) {
+                // If player presses the skip button (DualSense ✕ / Xbox A / X key) during replay, skip straight to frozen impact frame!
+                const skipPressed = this.inputManager.isSkipButtonHeld(0) || this.inputManager.isSkipButtonHeld(1);
+                if (skipPressed && (!this.replayFinished || this.freezeTimer > 0)) {
+                    const totalFrames = this.replaySystem.frames.length - 1;
+                    this.replayCurrentFrame = totalFrames;
+                    this.replayFinished = true;
+                    this.killcamZoomProgress = 1.0;
+                    this.freezeTimer = 0;
+                    this.currentReplaySnapshot = this.replaySystem.frames[totalFrames];
+                    const modal = document.getElementById('victory-modal');
+                    if (modal) modal.classList.remove('hidden');
+                } else if (!this.replayFinished) {
                     const totalFrames = this.replaySystem.frames.length - 1;
                     const framesLeft = totalFrames - this.replayCurrentFrame;
                     
@@ -2046,12 +2077,21 @@ class CandelaGame {
         this.ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
         this.ctx.fillRect(0, 0, this.map.width, this.map.height);
 
-        // 6. Draw "REPLAY" text in top left corner of the killcam
+        // 6. Draw "REPLAY" text in top left and "Appuyer sur ✕ pour passer" in top right
         this.ctx.restore();
         this.ctx.save();
-        this.ctx.fillStyle = 'rgba(255, 0, 0, 0.7)';
+        this.ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
         this.ctx.font = '800 24px Orbitron';
         this.ctx.fillText("🔴 REPLAY", 30, 40);
+
+        // Detect connected gamepad to display appropriate prompt icon (✕ / A / X)
+        const hasGamepad = !!(this.inputManager.gamepads[0] || this.inputManager.gamepads[1]);
+        const promptText = hasGamepad ? "Appuyer sur ✕ pour passer" : "Appuyer sur X (ou ✕) pour passer";
+
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+        this.ctx.font = '600 16px Orbitron';
+        this.ctx.textAlign = 'right';
+        this.ctx.fillText(`[ ${promptText} ]`, vw - 30, 40);
         this.ctx.restore();
     }
 
