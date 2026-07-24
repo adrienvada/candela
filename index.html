@@ -37,23 +37,137 @@
                 <h1>CANDELA 2D</h1>
                 <p class="subtitle">TACTICAL 2D MULTIPLAYER</p>
 
-                <div class="controls-overview" style="display: flex; flex-direction: column; gap: 15px;">
-                    <div class="player-controls"
-                        style="border-left: 4px solid #fff; padding-left: 15px; background: rgba(255,255,255,0.05); padding: 15px;">
-                        <h4>🎮 CONTRÔLES MANETTE (P1 & P2)</h4>
-                        <p><strong>Déplacement :</strong> Stick Gauche &nbsp;|&nbsp; <strong>Visée :</strong> Stick
-                            Droit</p>
-                        <p><strong>Torche :</strong> L2 (Gâchette Gauche) &nbsp;|&nbsp; <strong>Tir :</strong> R2
-                            (Gâchette Droite)</p>
-                        <p style="color: #00f0ff;"><strong>Sprint :</strong> Bouton A / Croix (Maintenir) - <em>Vitesse
-                                x2, mais désactive Tir et Torche</em></p>
-                    </div>
-                    <div class="player-controls"
-                        style="border-left: 4px solid #888; padding-left: 15px; background: rgba(0,0,0,0.2); padding: 10px;">
-                        <h4>⌨️ CONTRÔLES CLAVIER (Alternatifs)</h4>
-                        <p class="kb-hint"><strong>P1 (Bleu) :</strong> ZQSD / WASD + Souris (Visée) + Clic G / E (Tir) + Clic D / Espace (Torche) + Maj G (Sprint)</p>
-                        <p class="kb-hint"><strong>P2 (Rouge) :</strong> Flèches + IJKL (Visée) + O / Pavé num (Tir) + P (Torche) + M / Maj D (Sprint)</p>
-                    </div>
+                <!-- Notice Expérience Optimale -->
+                <div class="gamepad-notice"
+                    style="background: rgba(0, 240, 255, 0.08); border: 1px solid rgba(0, 240, 255, 0.25); border-radius: 10px; padding: 10px 16px; color: #e2e8f0; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 5px;">
+                    <span style="font-size: 18px;">🎮</span>
+                    <span>Veuillez brancher des manettes pour une expérience de jeu optimale.</span>
+                </div>
+
+                <!-- Schéma de la Manette -->
+                <div class="controls-diagram-wrapper"
+                    style="width: 100%; display: flex; justify-content: center; padding: 10px 0;">
+                    <svg viewBox="0 -20 580 275" class="gamepad-diagram"
+                        style="width: 100%; max-width: 600px; margin: 0; overflow: visible;">
+                        <defs>
+                            <linearGradient id="controllerBody" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#2d3748" />
+                                <stop offset="100%" stop-color="#1a202c" />
+                            </linearGradient>
+                            <linearGradient id="stickGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#4a5568" />
+                                <stop offset="100%" stop-color="#2d3748" />
+                            </linearGradient>
+                        </defs>
+
+                        <!-- CONTROLLER BODY SHAPE -->
+                        <g transform="translate(0, 0)">
+                            <!-- Handles / Grips & Base -->
+                            <path
+                                d="M 190,55 C 220,55 240,75 290,75 C 340,75 360,55 390,55 C 430,55 460,80 460,130 C 460,185 425,215 395,215 C 375,215 355,185 340,175 C 310,165 270,165 240,175 C 225,185 205,215 185,215 C 155,215 120,185 120,130 C 120,80 150,55 190,55 Z"
+                                fill="url(#controllerBody)" stroke="#4a5568" stroke-width="3"
+                                filter="drop-shadow(0px 8px 16px rgba(0,0,0,0.6))" />
+
+                            <!-- Triggers / Bumpers Top -->
+                            <!-- L2 Trigger (Torche - Jaune #ffea00) -->
+                            <path d="M 160,55 C 160,35 185,30 205,35 L 210,55 Z" fill="#3a4a5e" stroke="#ffea00"
+                                stroke-width="2" />
+                            <!-- R2 Trigger (Tir - Rouge #ff4757) -->
+                            <path d="M 420,55 C 420,35 395,30 375,35 L 370,55 Z" fill="#3a4a5e" stroke="#ff4757"
+                                stroke-width="2" />
+
+                            <!-- D-PAD (Left Side) -->
+                            <g transform="translate(170, 90)">
+                                <path
+                                    d="M 12,-12 H 4 V -20 H -4 V -12 H -12 V -4 H -20 V 4 H -12 V 12 H -4 V 20 H 4 V 12 H 12 V 4 H 20 V -4 H 12 Z"
+                                    fill="#1a202c" stroke="#4a5568" stroke-width="2" />
+                            </g>
+
+                            <!-- ACTION BUTTONS (Courir - Vert #2ed573) -->
+                            <g transform="translate(410, 90)">
+                                <circle cx="0" cy="-14" r="6" fill="#1a202c" stroke="#2ed573" stroke-width="2" />
+                                <circle cx="14" cy="0" r="6" fill="#1a202c" stroke="#2ed573" stroke-width="2" />
+                                <circle cx="0" cy="14" r="6" fill="#1a202c" stroke="#2ed573" stroke-width="2" />
+                                <circle cx="-14" cy="0" r="6" fill="#1a202c" stroke="#2ed573" stroke-width="2" />
+                            </g>
+
+                            <!-- LEFT THUMBSTICK (Déplacement - Bleu #00f0ff) -->
+                            <g transform="translate(225, 140)">
+                                <circle cx="0" cy="0" r="20" fill="#1a202c" stroke="#4a5568" stroke-width="2" />
+                                <circle cx="0" cy="0" r="14" fill="url(#stickGrad)" stroke="#00f0ff" stroke-width="2" />
+                                <line x1="-8" y1="0" x2="8" y2="0" stroke="#00f0ff" stroke-width="1.5" opacity="0.7" />
+                                <line x1="0" y1="-8" x2="0" y2="8" stroke="#00f0ff" stroke-width="1.5" opacity="0.7" />
+                            </g>
+
+                            <!-- RIGHT THUMBSTICK (Visée - Violet #a855f7) -->
+                            <g transform="translate(355, 140)">
+                                <circle cx="0" cy="0" r="20" fill="#1a202c" stroke="#4a5568" stroke-width="2" />
+                                <circle cx="0" cy="0" r="14" fill="url(#stickGrad)" stroke="#a855f7" stroke-width="2" />
+                                <line x1="-8" y1="0" x2="8" y2="0" stroke="#a855f7" stroke-width="1.5" opacity="0.7" />
+                                <line x1="0" y1="-8" x2="0" y2="8" stroke="#a855f7" stroke-width="1.5" opacity="0.7" />
+                            </g>
+
+                            <!-- Center Details -->
+                            <circle cx="290" cy="100" r="10" fill="#1a202c" stroke="#718096" stroke-width="2" />
+                        </g>
+
+                        <!-- ANNOTATIONS (Icônes x2 agrandies) -->
+
+                        <!-- 1. TORCHE (Jaune #ffea00 - 🔦) -->
+                        <g>
+                            <polyline points="185,35 120,25 76,25" fill="none" stroke="#ffea00" stroke-width="2"
+                                stroke-dasharray="5,3" />
+                            <circle cx="185" cy="35" r="5" fill="#ffea00" />
+                            <circle cx="50" cy="25" r="26" fill="#1a202c" stroke="#ffea00" stroke-width="3"
+                                filter="drop-shadow(0 0 8px rgba(255,234,0,0.4))" />
+                            <text x="50" y="27" font-size="30" text-anchor="middle"
+                                dominant-baseline="central">🔦</text>
+                        </g>
+
+                        <!-- 2. TIR (Rouge #ff4757 - Explosion / Tir 💥) -->
+                        <g>
+                            <polyline points="395,35 460,25 504,25" fill="none" stroke="#ff4757" stroke-width="2"
+                                stroke-dasharray="5,3" />
+                            <circle cx="395" cy="35" r="5" fill="#ff4757" />
+                            <circle cx="530" cy="25" r="26" fill="#1a202c" stroke="#ff4757" stroke-width="3"
+                                filter="drop-shadow(0 0 8px rgba(255,71,87,0.4))" />
+                            <text x="530" y="27" font-size="30" text-anchor="middle"
+                                dominant-baseline="central">💥</text>
+                        </g>
+
+                        <!-- 3. COURIR (Vert #2ed573 - Course rapide 🏃) -->
+                        <g>
+                            <polyline points="410,90 504,90" fill="none" stroke="#2ed573" stroke-width="2"
+                                stroke-dasharray="5,3" />
+                            <circle cx="410" cy="90" r="5" fill="#2ed573" />
+                            <circle cx="530" cy="90" r="26" fill="#1a202c" stroke="#2ed573" stroke-width="3"
+                                filter="drop-shadow(0 0 8px rgba(46,213,115,0.4))" />
+                            <text x="530" y="92" font-size="30" text-anchor="middle"
+                                dominant-baseline="central">🏃</text>
+                        </g>
+
+                        <!-- 4. DÉPLACEMENT (Bleu #00f0ff - Marche 🚶) -->
+                        <g>
+                            <polyline points="225,140 140,205 76,205" fill="none" stroke="#00f0ff" stroke-width="2"
+                                stroke-dasharray="5,3" />
+                            <circle cx="225" cy="140" r="5" fill="#00f0ff" />
+                            <circle cx="50" cy="205" r="26" fill="#1a202c" stroke="#00f0ff" stroke-width="3"
+                                filter="drop-shadow(0 0 8px rgba(0,240,255,0.4))" />
+                            <text x="50" y="207" font-size="30" text-anchor="middle"
+                                dominant-baseline="central">🚶</text>
+                        </g>
+
+                        <!-- 5. VISÉE (Violet #a855f7 - 🎯) -->
+                        <g>
+                            <polyline points="355,140 440,205 504,205" fill="none" stroke="#a855f7" stroke-width="2"
+                                stroke-dasharray="5,3" />
+                            <circle cx="355" cy="140" r="5" fill="#a855f7" />
+                            <circle cx="530" cy="205" r="26" fill="#1a202c" stroke="#a855f7" stroke-width="3"
+                                filter="drop-shadow(0 0 8px rgba(168,85,247,0.4))" />
+                            <text x="530" y="207" font-size="30" text-anchor="middle"
+                                dominant-baseline="central">🎯</text>
+                        </g>
+                    </svg>
                 </div>
                 <!-- Dual Controller Ready Badges for Start Menu -->
                 <div class="ready-status-box" style="margin-top: 16px;">
