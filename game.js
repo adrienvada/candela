@@ -236,11 +236,13 @@ class InputManager {
         this.mouseActive = false;
 
         window.addEventListener('keydown', (e) => {
-            this.keys[e.code] = true;
+            if (e.code) this.keys[e.code] = true;
+            if (e.key) this.keys[e.key.toLowerCase()] = true;
         });
 
         window.addEventListener('keyup', (e) => {
-            this.keys[e.code] = false;
+            if (e.code) this.keys[e.code] = false;
+            if (e.key) this.keys[e.key.toLowerCase()] = false;
         });
 
         window.addEventListener('mousemove', (e) => {
@@ -357,12 +359,12 @@ class InputManager {
 
         // 2. KEYBOARD & MOUSE FALLBACK
         if (playerIndex === 0) {
-            // Keyboard Movement for P1 (WASD or Arrow keys if stick not used)
+            // Keyboard Movement for P1 (WASD / ZQSD for QWERTY & AZERTY)
             if (moveX === 0 && moveY === 0) {
-                if (this.keys['KeyW'] || this.keys['ArrowUp']) moveY -= 1;
-                if (this.keys['KeyS'] || this.keys['ArrowDown']) moveY += 1;
-                if (this.keys['KeyA'] || this.keys['ArrowLeft']) moveX -= 1;
-                if (this.keys['KeyD'] || this.keys['ArrowRight']) moveX += 1;
+                if (this.keys['KeyW'] || this.keys['KeyZ'] || this.keys['w'] || this.keys['z']) moveY -= 1;
+                if (this.keys['KeyS'] || this.keys['s']) moveY += 1;
+                if (this.keys['KeyA'] || this.keys['KeyQ'] || this.keys['a'] || this.keys['q']) moveX -= 1;
+                if (this.keys['KeyD'] || this.keys['d']) moveX += 1;
 
                 if (moveX !== 0 && moveY !== 0) {
                     const norm = 1 / Math.sqrt(2);
@@ -379,33 +381,39 @@ class InputManager {
             }
 
             if (!gp) {
-                if (this.mouseButtons.left) shoot = true;
-                if (this.mouseButtons.right || this.keys['Space']) light = true;
-                if (this.keys['ShiftLeft'] || this.keys['ShiftRight']) sprint = true;
+                if (this.mouseButtons.left || this.keys['KeyE'] || this.keys['e'] || this.keys['KeyF'] || this.keys['f']) shoot = true;
+                if (this.mouseButtons.right || this.keys['Space'] || this.keys[' ']) light = true;
+                if (this.keys['ShiftLeft']) sprint = true;
             }
         } else if (playerIndex === 1) {
-            // P2 Keyboard Controls (Arrows + IJKL Aim + O/P)
+            // P2 Keyboard Controls (Arrows + IJKL Aim + O/P/M)
             if (moveX === 0 && moveY === 0) {
                 if (this.keys['ArrowUp']) moveY -= 1;
                 if (this.keys['ArrowDown']) moveY += 1;
                 if (this.keys['ArrowLeft']) moveX -= 1;
                 if (this.keys['ArrowRight']) moveX += 1;
+
+                if (moveX !== 0 && moveY !== 0) {
+                    const norm = 1 / Math.sqrt(2);
+                    moveX *= norm;
+                    moveY *= norm;
+                }
             }
 
             let aimX = 0, aimY = 0;
-            if (this.keys['KeyI']) aimY -= 1;
-            if (this.keys['KeyK']) aimY += 1;
-            if (this.keys['KeyJ']) aimX -= 1;
-            if (this.keys['KeyL']) aimX += 1;
+            if (this.keys['KeyI'] || this.keys['i']) aimY -= 1;
+            if (this.keys['KeyK'] || this.keys['k']) aimY += 1;
+            if (this.keys['KeyJ'] || this.keys['j']) aimX -= 1;
+            if (this.keys['KeyL'] || this.keys['l']) aimX += 1;
 
             if (aimX !== 0 || aimY !== 0) {
                 aimAngle = Math.atan2(aimY, aimX);
             }
 
             if (!gp) {
-                if (this.keys['KeyO'] || this.keys['Numpad0']) shoot = true;
-                if (this.keys['KeyP'] || this.keys['NumpadControl']) light = true;
-                if (this.keys['KeyM'] || this.keys['ShiftRight']) sprint = true;
+                if (this.keys['KeyO'] || this.keys['o'] || this.keys['Numpad0'] || this.keys['Numpad1'] || this.keys['Numpad4']) shoot = true;
+                if (this.keys['KeyP'] || this.keys['p'] || this.keys['NumpadControl'] || this.keys['Numpad2'] || this.keys['Numpad5']) light = true;
+                if (this.keys['KeyM'] || this.keys['m'] || this.keys['Semicolon'] || this.keys['ShiftRight']) sprint = true;
             }
         }
 
@@ -442,7 +450,7 @@ class InputManager {
 
         // Keyboard fallbacks:
         if (playerIndex === 0) {
-            if (this.keys['Space'] || this.keys['KeyW'] || this.keys['KeyA'] || this.keys['KeyS'] || this.keys['KeyD'] || this.keys['KeyE'] || this.keys['Enter']) return true;
+            if (this.keys['Space'] || this.keys['KeyW'] || this.keys['KeyZ'] || this.keys['KeyA'] || this.keys['KeyQ'] || this.keys['KeyS'] || this.keys['KeyD'] || this.keys['KeyE'] || this.keys['Enter']) return true;
         } else {
             if (this.keys['KeyO'] || this.keys['KeyP'] || this.keys['ArrowUp'] || this.keys['ArrowDown'] || this.keys['ArrowLeft'] || this.keys['ArrowRight'] || this.keys['Enter']) return true;
         }
