@@ -1952,26 +1952,59 @@ class CandelaGame {
     updateGamepadStatusUI(gp1, gp2) {
         const el1 = document.getElementById('gp1-status');
         const el2 = document.getElementById('gp2-status');
+        const startEl1 = document.getElementById('start-gp1-status');
+        const startEl2 = document.getElementById('start-gp2-status');
 
         const raw1 = this.inputManager.gamepads[0];
         const raw2 = this.inputManager.gamepads[1];
 
         if (gp1 && raw1) {
-            const name = raw1.id ? raw1.id.split('(')[0].trim().substring(0, 22) : 'CONNECTÉE';
-            el1.className = 'gp-badge connected';
-            el1.querySelector('.gp-name').textContent = `M1: ${name} ✓`;
+            const name = raw1.id ? raw1.id.split('(')[0].trim().substring(0, 18) : 'CONNECTÉE';
+            if (el1) {
+                el1.className = 'gp-badge connected';
+                el1.querySelector('.gp-name').textContent = `M1: ${name} ✓`;
+            }
+            if (startEl1) {
+                startEl1.className = 'gp-badge connected start-gp-status';
+                startEl1.querySelector('.gp-name').textContent = `MANETTE 1: CONNECTÉE ✓`;
+            }
         } else {
-            el1.className = 'gp-badge disconnected';
-            el1.querySelector('.gp-name').textContent = 'M1: APPUYEZ SUR UN BOUTON...';
+            if (el1) {
+                el1.className = 'gp-badge disconnected';
+                el1.querySelector('.gp-name').textContent = 'M1: APPUYEZ SUR UN BOUTON...';
+            }
+            if (startEl1) {
+                startEl1.className = 'gp-badge disconnected start-gp-status';
+                startEl1.querySelector('.gp-name').textContent = 'MANETTE 1: NON CONNECTÉE';
+            }
         }
 
         if (gp2 && raw2) {
-            const name = raw2.id ? raw2.id.split('(')[0].trim().substring(0, 22) : 'CONNECTÉE';
-            el2.className = 'gp-badge connected';
-            el2.querySelector('.gp-name').textContent = `M2: ${name} ✓`;
+            const name = raw2.id ? raw2.id.split('(')[0].trim().substring(0, 18) : 'CONNECTÉE';
+            if (el2) {
+                el2.className = 'gp-badge connected';
+                el2.querySelector('.gp-name').textContent = `M2: ${name} ✓`;
+            }
+            if (startEl2) {
+                startEl2.className = 'gp-badge connected start-gp-status';
+                startEl2.querySelector('.gp-name').textContent = `MANETTE 2: CONNECTÉE ✓`;
+            }
         } else {
-            el2.className = 'gp-badge disconnected';
-            el2.querySelector('.gp-name').textContent = 'M2: APPUYEZ SUR UN BOUTON...';
+            if (el2) {
+                el2.className = 'gp-badge disconnected';
+                el2.querySelector('.gp-name').textContent = 'M2: APPUYEZ SUR UN BOUTON...';
+            }
+            if (startEl2) {
+                startEl2.className = 'gp-badge disconnected start-gp-status';
+                startEl2.querySelector('.gp-name').textContent = 'MANETTE 2: NON CONNECTÉE';
+            }
+        }
+
+        // Dynamically hide/show the "optimal experience" notice when 2 gamepads are connected
+        const noticeEl = document.getElementById('gamepad-notice');
+        if (noticeEl) {
+            const bothConnected = (gp1 && gp2 && raw1 && raw2);
+            noticeEl.style.display = bothConnected ? 'none' : 'flex';
         }
     }
 

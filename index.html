@@ -38,7 +38,7 @@
                 <p class="subtitle">TACTICAL 2D MULTIPLAYER</p>
 
                 <!-- Notice Expérience Optimale -->
-                <div class="gamepad-notice"
+                <div id="gamepad-notice" class="gamepad-notice"
                     style="background: rgba(0, 240, 255, 0.08); border: 1px solid rgba(0, 240, 255, 0.25); border-radius: 10px; padding: 10px 16px; color: #e2e8f0; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 5px;">
                     <span style="font-size: 18px;">🎮</span>
                     <span>Veuillez brancher des manettes pour une expérience de jeu optimale.</span>
@@ -169,15 +169,28 @@
                         </g>
                     </svg>
                 </div>
-                <!-- Dual Controller Ready Badges for Start Menu -->
-                <div class="ready-status-box" style="margin-top: 16px;">
-                    <div id="start-p1-ready-badge" class="ready-badge waiting">
-                        <div id="start-p1-ready-bar" class="ready-progress-bar" style="width: 0%;"></div>
-                        <span class="rb-icon">🎮</span> <span class="rb-text">P1: MAINTENEZ N'IMPORTE QUEL BOUTON</span>
+                <!-- Dual Controller Ready Badges & Gamepad Status for Start Menu -->
+                <div class="ready-status-box" style="margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; width: 100%;">
+                    <div class="player-start-col" style="display: flex; flex-direction: column; gap: 8px;">
+                        <div id="start-p1-ready-badge" class="ready-badge waiting">
+                            <div id="start-p1-ready-bar" class="ready-progress-bar" style="width: 0%;"></div>
+                            <span class="rb-icon">🎮</span> <span class="rb-text">P1: MAINTENEZ UN BOUTON</span>
+                        </div>
+                        <div id="start-gp1-status" class="gp-badge disconnected start-gp-status">
+                            <span class="gp-dot"></span>
+                            <span class="gp-name">MANETTE 1: RECHERCHE...</span>
+                        </div>
                     </div>
-                    <div id="start-p2-ready-badge" class="ready-badge waiting">
-                        <div id="start-p2-ready-bar" class="ready-progress-bar" style="width: 0%;"></div>
-                        <span class="rb-icon">🎮</span> <span class="rb-text">P2: MAINTENEZ N'IMPORTE QUEL BOUTON</span>
+
+                    <div class="player-start-col" style="display: flex; flex-direction: column; gap: 8px;">
+                        <div id="start-p2-ready-badge" class="ready-badge waiting">
+                            <div id="start-p2-ready-bar" class="ready-progress-bar" style="width: 0%;"></div>
+                            <span class="rb-icon">🎮</span> <span class="rb-text">P2: MAINTENEZ UN BOUTON</span>
+                        </div>
+                        <div id="start-gp2-status" class="gp-badge disconnected start-gp-status">
+                            <span class="gp-dot"></span>
+                            <span class="gp-name">MANETTE 2: RECHERCHE...</span>
+                        </div>
                     </div>
                 </div>
             </div>
