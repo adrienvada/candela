@@ -359,7 +359,7 @@ class InputManager {
 
             light = ltVal > 0.2 || (gp.buttons[4] && (gp.buttons[4].pressed || gp.buttons[4] === 1)); // LT or LB
             shoot = rtVal > 0.2 || (gp.buttons[5] && (gp.buttons[5].pressed || gp.buttons[5] === 1)); // RT or RB
-            
+
             // Sprint: any face button [0,1,2,3]
             for (let i = 0; i < 4; i++) {
                 if (gp.buttons[i] && (gp.buttons[i].pressed || gp.buttons[i] === 1)) {
@@ -739,6 +739,7 @@ class Player {
         this.targetAngle = startAngle;
         this.punchZoom = 0;
         this.vignetteFlash = 0;
+        this.dazzleAmount = 0; // 0 = clear vision, 1 = fully blinded
     }
 
     resetPosition(x, y, angle) {
@@ -754,6 +755,7 @@ class Player {
         this.ghostHp = 100;
         this.punchZoom = 0;
         this.vignetteFlash = 0;
+        this.dazzleAmount = 0;
     }
 
     update(dt, input, mapSegments, audioEngine) {
@@ -784,13 +786,23 @@ class Player {
         if (this.isSprinting) {
             currentSpeed *= 2;
             this.flashlightOn = false; // Disable light while sprinting
-        } else {
+        } else if (!input.sprint) {
+            // Only allow toggling light when sprint button is NOT held
             this.flashlightOn = input.light && this.hp > 0;
+        } else {
+            // Sprint held but not moving: still block the light
+            this.flashlightOn = false;
         }
 
-        // Movement
-        this.vx = input.moveX * currentSpeed;
-        this.vy = input.moveY * currentSpeed;
+        // Dazzle decay (fades 4x faster when no longer illuminated)
+        if (this.dazzleAmount > 0) {
+            this.dazzleAmount = Math.max(0, this.dazzleAmount - dt * 10.0);
+        }
+
+        // Movement (20% slower when fully dazzled)
+        const dazzleSpeedPenalty = 1.0 - this.dazzleAmount * 0.2;
+        this.vx = input.moveX * currentSpeed * dazzleSpeedPenalty;
+        this.vy = input.moveY * currentSpeed * dazzleSpeedPenalty;
 
         // Apply movement physics with wall collision
         const nextX = this.x + this.vx * dt;
@@ -798,17 +810,18 @@ class Player {
 
         this.moveAndCollide(nextX, nextY, mapSegments);
 
-        // Aim angle update (smooth lerp)
+        // Aim angle update (smooth lerp — 60% slower when fully dazzled)
         if (input.aimAngle !== null) {
             this.targetAngle = input.aimAngle;
         }
         let angleDiff = this.targetAngle - this.angle;
         while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
         while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-        this.angle += angleDiff * Math.min(1, dt * 18);
+        const aimLerpSpeed = 18 * (1.0 - this.dazzleAmount * 0.6);
+        this.angle += angleDiff * Math.min(1, dt * aimLerpSpeed);
 
-        // Flashlight toggle
-        if (input.light !== this.flashlightOn) {
+        // Flashlight toggle (only if not sprint-blocked)
+        if (!this.isSprinting && !input.sprint && input.light !== this.flashlightOn) {
             this.flashlightOn = input.light;
             audioEngine.playTorchClick(this.flashlightOn);
         }
@@ -1032,7 +1045,7 @@ class ParticleSystem {
         const dx = x2 - x1;
         const dy = y2 - y1;
         const dist = Math.hypot(dx, dy) || 1; // Prevent div by 0
-        
+
         this.particles.push({
             x1: x1, y1: y1,
             x2: x2, y2: y2,
@@ -1065,7 +1078,7 @@ class ParticleSystem {
     update(dt) {
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
-            
+
             if (p.isBulletTracer) {
                 p.progress += p.speed * dt;
                 const maxProgress = 1.0 + (p.tailLength / p.totalDist);
@@ -1095,16 +1108,16 @@ class ParticleSystem {
                 ctx.shadowColor = p.color;
                 ctx.shadowBlur = 12;
                 ctx.lineCap = 'round';
-                
+
                 const headDist = Math.min(p.totalDist, p.progress * p.totalDist);
                 const tailDist = Math.max(0, p.progress * p.totalDist - p.tailLength);
-                
+
                 if (headDist > tailDist) {
                     const hx = p.x1 + p.dx * headDist;
                     const hy = p.y1 + p.dy * headDist;
                     const tx = p.x1 + p.dx * tailDist;
                     const ty = p.y1 + p.dy * tailDist;
-                    
+
                     ctx.beginPath();
                     ctx.moveTo(tx, ty);
                     ctx.lineTo(hx, hy);
@@ -1295,7 +1308,7 @@ class CandelaGame {
         this.prevScoreP1 = 0;
         this.prevScoreP2 = 0;
         this.heartbeatTimer = 0;
-        
+
         // Replay System
         this.replaySystem = new ReplaySystem(2.5, 60); // 2.5 seconds of replay
         this.replayTimer = 0;
@@ -1375,7 +1388,7 @@ class CandelaGame {
         this.slowMotionTimer = 0;
         this.cam[0] = { x: 200, y: 200 };
         this.cam[1] = { x: 1200, y: 1200 };
-        
+
         this.replaySystem.reset();
         this.replayTimer = 0;
         this.currentReplaySnapshot = null;
@@ -1440,7 +1453,7 @@ class CandelaGame {
                     minOppDist = distFromBarrel;
                     hitOpponent = target;
                     oppImpactPoint = closest;
-                    
+
                     // Damage falloff: 100% at center, 25% at extreme edge of player radius.
                     // Cubic falloff ensures it stays high near center then drops sharply towards the edge.
                     const normalizedDist = dist / playerHitbox;
@@ -1458,7 +1471,7 @@ class CandelaGame {
             finalImpactY = oppImpactPoint.y;
 
             // Apply Damage & Score!
-            hitOpponent.hp -= oppHitDamage; 
+            hitOpponent.hp -= oppHitDamage;
             hitOpponent.screenShake = 1.0;
             hitOpponent.punchZoom = 1.0;
             hitOpponent.vignetteFlash = 1.0;
@@ -1466,12 +1479,12 @@ class CandelaGame {
 
             const scoreGain = Math.max(10, oppHitDamage * 2);
             player.score += scoreGain;
-            
+
             // Show damage as floating text
             let damageText = `-${oppHitDamage} HP`;
             if (oppHitDamage >= 45) damageText = `CRITIQUE -${oppHitDamage}`;
             else if (oppHitDamage <= 20) damageText = `ÉRAFLURE -${oppHitDamage}`;
-            
+
             this.particleSystem.addFloatingText(oppImpactPoint.x, oppImpactPoint.y - 15, damageText, player.color);
             this.addKillFeedEntry(`${player.name} → ${damageText}`, player.color);
 
@@ -1499,6 +1512,41 @@ class CandelaGame {
         this.particleSystem.addBulletTracer(startX, startY, finalImpactX, finalImpactY, player.color);
 
         this.audioEngine.playShoot();
+    }
+
+    updateDazzle(target, illuminator, dt) {
+        if (!illuminator.flashlightOn || illuminator.hp <= 0 || target.hp <= 0) return;
+
+        const dist = Math.hypot(target.x - illuminator.x, target.y - illuminator.y);
+        if (dist > illuminator.flashlightRange) return;
+
+        // Is the target inside the illuminator's flashlight cone?
+        const angleToTarget = Math.atan2(target.y - illuminator.y, target.x - illuminator.x);
+        let diff = angleToTarget - illuminator.angle;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+
+        if (Math.abs(diff) > illuminator.flashlightFov / 2) return;
+
+        // Line-of-sight check (walls block the dazzle)
+        const losRay = { a: { x: illuminator.x, y: illuminator.y }, b: { x: target.x, y: target.y } };
+        for (let i = 0; i < this.map.segments.length; i++) {
+            const intersect = RaycastEngine.getIntersection(losRay, this.map.segments[i]);
+            if (intersect && intersect.param > 0.02 && intersect.param < 0.98) {
+                return; // Wall blocks the beam
+            }
+        }
+
+        // Dazzle intensity: stronger when closer and more centered in cone
+        const distFactor = 1.0 - (dist / illuminator.flashlightRange);
+        const angleFactor = 1.0 - (Math.abs(diff) / (illuminator.flashlightFov / 2));
+        const intensity = distFactor * angleFactor;
+
+        // Ramp up dazzle 4x faster (~0.025s to full) and store who is blinding us
+        target.dazzleAmount = Math.min(1.0, target.dazzleAmount + intensity * dt * 64.0);
+        target.dazzleSourceX = illuminator.x;
+        target.dazzleSourceY = illuminator.y;
+        target.dazzleSourceAngle = illuminator.angle;
     }
 
     updateMenuCursors(dt) {
@@ -1608,11 +1656,11 @@ class CandelaGame {
         if (this.gameState === 'VICTORY') {
             this.updateMenuCursors(dt);
             this.updateVictoryReadyLoop(dt);
-            
+
             // Permet aux particules de sang/texte de continuer de s'animer
             this.particleSystem.update(dt);
             this.ambientParticles.update(dt);
-            
+
             // Decay visual effects for both players
             for (const p of this.players) {
                 if (p.screenShake > 0) p.screenShake = Math.max(0, p.screenShake - dt * 10);
@@ -1661,18 +1709,18 @@ class CandelaGame {
                 } else if (!this.replayFinished) {
                     const totalFrames = this.replaySystem.frames.length - 1;
                     const framesLeft = totalFrames - this.replayCurrentFrame;
-                    
+
                     // Slow down to 0.25x speed during the last 0.5s of action (30 frames)
                     const speed = framesLeft <= 30 ? 0.25 : 1.0;
-                    
+
                     if (framesLeft <= 30) {
                         this.killcamZoomProgress = 1.0 - (framesLeft / 30);
                     } else {
                         this.killcamZoomProgress = 0.0;
                     }
-                    
+
                     this.replayCurrentFrame += (dt * 60) * speed;
-                    
+
                     let frameIdx = Math.floor(this.replayCurrentFrame);
                     if (frameIdx >= totalFrames) {
                         frameIdx = totalFrames;
@@ -1742,6 +1790,10 @@ class CandelaGame {
 
         this.players[0].update(effectiveDt, inP1, this.map.segments, this.audioEngine);
         this.players[1].update(effectiveDt, inP2, this.map.segments, this.audioEngine);
+
+        // Dazzle detection: check if each player is being blinded by opponent's flashlight
+        this.updateDazzle(this.players[0], this.players[1], effectiveDt);
+        this.updateDazzle(this.players[1], this.players[0], effectiveDt);
 
         // Camera lerp
         this.cam[0].x += (this.players[0].x - this.cam[0].x) * Math.min(1, effectiveDt * this.camLerpSpeed);
@@ -1876,7 +1928,7 @@ class CandelaGame {
         this.slowMotionTimer = 0.5;
         this.audioEngine.stopAmbientDrone();
         this.gameState = 'VICTORY';
-        
+
         // Delay replay setup to let the bullet tracer and blood particles travel
         this.postMortemTimer = 0.20; // 200ms
         this.killcamZoomProgress = 0.0;
@@ -1984,7 +2036,7 @@ class CandelaGame {
         if (snap && this.killcamZoomProgress !== undefined && this.killcamZoomProgress > 0) {
             const p1 = snap.players[0];
             const p2 = snap.players[1];
-            
+
             // Calculate bounding box of players
             const dx = Math.abs(p1.x - p2.x);
             const dy = Math.abs(p1.y - p2.y);
@@ -1992,16 +2044,16 @@ class CandelaGame {
             let zoomScale = Math.min(vw / (dx + padding), vh / (dy + padding));
             zoomScale = Math.min(zoomScale, globalScale * 3.5); // Max zoom is 3.5x global
             zoomScale = Math.max(zoomScale, globalScale); // Ensure we don't zoom out
-            
+
             // Cubic ease out
             const t = this.killcamZoomProgress;
             const ease = 1 - Math.pow(1 - t, 3);
-            
+
             finalScale = globalScale + (zoomScale - globalScale) * ease;
-            
+
             const zoomTargetX = (p1.x + p2.x) / 2;
             const zoomTargetY = (p1.y + p2.y) / 2;
-            
+
             targetX = globalTargetX + (zoomTargetX - globalTargetX) * ease;
             targetY = globalTargetY + (zoomTargetY - globalTargetY) * ease;
         }
@@ -2113,6 +2165,32 @@ class CandelaGame {
         return segs;
     }
 
+    getClampedDazzleOffset(player, dazzleAmount) {
+        const d = Math.min(1.0, dazzleAmount);
+        const desiredOffset = d * 100;
+        let maxDist = desiredOffset;
+
+        const backAngle = player.angle + Math.PI;
+        const backRay = {
+            a: { x: player.x, y: player.y },
+            b: { x: player.x + Math.cos(backAngle) * desiredOffset, y: player.y + Math.sin(backAngle) * desiredOffset }
+        };
+
+        if (this.map && this.map.segments) {
+            for (let i = 0; i < this.map.segments.length; i++) {
+                const intersect = RaycastEngine.getIntersection(backRay, this.map.segments[i]);
+                if (intersect && intersect.param >= 0 && intersect.param <= 1) {
+                    const dist = intersect.param * desiredOffset;
+                    if (dist < maxDist) {
+                        maxDist = dist;
+                    }
+                }
+            }
+        }
+
+        return Math.max(0, maxDist - 10);
+    }
+
     renderViewport(vx, vy, vw, vh, viewer, opponent) {
         this.ctx.save();
 
@@ -2171,10 +2249,20 @@ class CandelaGame {
             );
         }
 
+        let oppWideLightPoly = null;
         if (opponent.flashlightOn) {
             opponentLightPoly = RaycastEngine.calculateVisibilityPolygon(
                 opponent.x, opponent.y, opponent.flashlightRange, segsForOpponent, opponent.angle, opponent.flashlightFov
             );
+            if (viewer.dazzleAmount > 0.1) {
+                const offset = this.getClampedDazzleOffset(opponent, viewer.dazzleAmount);
+                const originX = opponent.x - Math.cos(opponent.angle) * offset;
+                const originY = opponent.y - Math.sin(opponent.angle) * offset;
+                const widenedFov = Math.PI * 0.45;
+                oppWideLightPoly = RaycastEngine.calculateVisibilityPolygon(
+                    originX, originY, opponent.flashlightRange * 1.5 + offset, this.map.segments, opponent.angle, widenedFov
+                );
+            }
         }
 
         // 3. DARKNESS FOG LAYER - Reuse pre-allocated canvas for performance
@@ -2207,12 +2295,13 @@ class CandelaGame {
             offCtx.fill();
         }
 
-        // Cut Opponent Flashlight Beam (if ON)
-        if (opponentLightPoly && opponentLightPoly.length > 0) {
+        // Cut Opponent Flashlight Beam (if ON - use wide poly when dazzled so narrow cone cutout disappears)
+        const opponentPolyToCut = (viewer.dazzleAmount > 0.1 && oppWideLightPoly) ? oppWideLightPoly : opponentLightPoly;
+        if (opponentPolyToCut && opponentPolyToCut.length > 0) {
             offCtx.beginPath();
-            offCtx.moveTo(opponentLightPoly[0].x, opponentLightPoly[0].y);
-            for (let i = 1; i < opponentLightPoly.length; i++) {
-                offCtx.lineTo(opponentLightPoly[i].x, opponentLightPoly[i].y);
+            offCtx.moveTo(opponentPolyToCut[0].x, opponentPolyToCut[0].y);
+            for (let i = 1; i < opponentPolyToCut.length; i++) {
+                offCtx.lineTo(opponentPolyToCut[i].x, opponentPolyToCut[i].y);
             }
             offCtx.closePath();
             offCtx.fill();
@@ -2263,9 +2352,10 @@ class CandelaGame {
         this.ctx.drawImage(offCanvas, camX, camY);
 
         // 6. Draw Light Beams Aesthetics (Glow Gradients)
-        this.drawFlashlightGlow(viewer, viewerLightPoly);
+        this.drawFlashlightGlow(viewer, viewerLightPoly, 0);
+
         if (opponent.flashlightOn) {
-            this.drawFlashlightGlow(opponent, opponentLightPoly);
+            this.drawFlashlightGlow(opponent, opponentLightPoly, viewer.dazzleAmount, oppWideLightPoly);
         }
 
         // 7. Draw Bullets & Particles
@@ -2278,7 +2368,7 @@ class CandelaGame {
         const isOpponentLit = this.checkIsOpponentLit(viewer, opponent, viewerLightPoly, opponentLightPoly);
 
         if (isOpponentLit && opponent.hp > 0) {
-            this.drawPlayerAvatar(opponent, true);
+            this.drawPlayerAvatar(opponent, true, false, viewer.dazzleAmount);
         }
 
         // Always draw Viewer Avatar
@@ -2413,22 +2503,31 @@ class CandelaGame {
         this.ctx.restore();
     }
 
-    drawFlashlightGlow(player, lightPoly) {
+    drawFlashlightGlow(player, lightPoly, dazzleAmount = 0, wideLightPoly = null) {
         if (!player.flashlightOn || !lightPoly || lightPoly.length === 0) return;
 
         this.ctx.save();
-        // Subtle flicker
-        const flickerAlpha = 0.88 + Math.random() * 0.12;
+        // Subtle flicker — stronger when dazzled
+        const flickerBase = dazzleAmount > 0.1 ? (0.75 + Math.random() * 0.25) : 1.0;
+        const flickerAlpha = (0.88 + Math.random() * 0.12) * flickerBase;
         this.ctx.globalAlpha = flickerAlpha;
+
+        // When viewer is dazzled, the beam appears brighter and more intense at the origin
+        const d = Math.min(1.0, dazzleAmount);
+        const originBright = 0.8 + d * 0.2;   // origin glow: 0.8 → 1.0
+        const midBright = 0.4 + d * 0.45;      // mid glow:    0.4 → 0.85
+        const tipBright = 0.0 + d * 0.3;       // tip glow:    0.0 → 0.3
 
         const grad = this.ctx.createRadialGradient(
             player.x, player.y, 10,
             player.x, player.y, player.flashlightRange
         );
-        grad.addColorStop(0, 'rgba(255, 240, 200, 0.8)');
-        grad.addColorStop(0.3, 'rgba(255, 220, 150, 0.4)');
-        grad.addColorStop(1, 'rgba(255, 200, 100, 0.0)');
+        grad.addColorStop(0, `rgba(255, 245, 220, ${originBright})`);
+        grad.addColorStop(0.3, `rgba(255, 230, 170, ${midBright})`);
+        grad.addColorStop(1, `rgba(255, 210, 120, ${tipBright})`);
 
+        // The original sharp cone fades out rapidly when dazzled so only the soft dazzle cone is visible
+        this.ctx.globalAlpha = Math.max(0, 1.0 - d * 3) * flickerAlpha;
         this.ctx.fillStyle = grad;
         this.ctx.beginPath();
         this.ctx.moveTo(lightPoly[0].x, lightPoly[0].y);
@@ -2437,6 +2536,88 @@ class CandelaGame {
         }
         this.ctx.closePath();
         this.ctx.fill();
+        this.ctx.globalAlpha = 1.0;
+
+        // When dazzled, flood the beam with white and widen the visible cone
+        if (d > 0.1 && wideLightPoly) {
+            const w = this.canvas.width;
+            const h = this.canvas.height;
+            if (!this.dazzleCanvas || this.dazzleCanvas.width !== w || this.dazzleCanvas.height !== h) {
+                this.dazzleCanvas = document.createElement('canvas');
+                this.dazzleCanvas.width = w;
+                this.dazzleCanvas.height = h;
+                this.dazzleCtx = this.dazzleCanvas.getContext('2d');
+            }
+
+            const dCtx = this.dazzleCtx;
+            dCtx.clearRect(0, 0, w, h);
+            dCtx.save();
+
+            // Clip to wideLightPoly in offscreen context so it respects walls
+            dCtx.beginPath();
+            dCtx.moveTo(wideLightPoly[0].x, wideLightPoly[0].y);
+            for (let i = 1; i < wideLightPoly.length; i++) {
+                dCtx.lineTo(wideLightPoly[i].x, wideLightPoly[i].y);
+            }
+            dCtx.closePath();
+            dCtx.clip();
+
+            // Offset the origin of the dazzle backward (clamped if near a wall behind the player)
+            const offset = this.getClampedDazzleOffset(player, dazzleAmount);
+            const originX = player.x - Math.cos(player.angle) * offset;
+            const originY = player.y - Math.sin(player.angle) * offset;
+
+            // Transform to draw symmetrical ellipses along the beam's central axis
+            dCtx.translate(originX, originY);
+            dCtx.rotate(player.angle);
+
+            // Increase the drawing range by the offset so the beam still reaches the viewer
+            const ellipseRange = player.flashlightRange + offset;
+
+            // Calculate the maximum expanded angle (halved expansion)
+            const widenedFov = player.flashlightFov + (Math.PI * 0.3 * d);
+            const maxAngle = widenedFov / 2;
+
+            // Draw stacked ellipses to create a flawless Angular AND Radial fade.
+            const layers = 8;
+            for (let l = 1; l <= layers; l++) {
+                const t = l / layers;
+                const angle = maxAngle * t;
+                const scaleY = Math.tan(angle);
+
+                dCtx.save();
+                dCtx.scale(1.0, scaleY);
+
+                const layerAlpha = (1.0 - t + 0.05);
+                const baseAlpha = 0.5 * layerAlpha * d * flickerBase;
+
+                const ellipseGrad = dCtx.createRadialGradient(
+                    0, 0, ellipseRange * 0.1,
+                    0, 0, ellipseRange
+                );
+                ellipseGrad.addColorStop(0, `rgba(255, 255, 255, ${baseAlpha})`);
+                ellipseGrad.addColorStop(0.4, `rgba(255, 255, 250, ${baseAlpha * 0.8})`);
+                ellipseGrad.addColorStop(0.8, `rgba(255, 252, 240, ${baseAlpha * 0.3})`);
+                ellipseGrad.addColorStop(1, 'rgba(255, 245, 220, 0)');
+
+                dCtx.fillStyle = ellipseGrad;
+                dCtx.beginPath();
+                dCtx.arc(0, 0, ellipseRange, 0, Math.PI * 2);
+                dCtx.fill();
+
+                dCtx.restore();
+            }
+
+            dCtx.restore();
+
+            // Draw offscreen buffer onto main canvas WITH A REAL BLUR FILTER (blurs sharp clip & peak vertex!)
+            this.ctx.save();
+            this.ctx.filter = `blur(${Math.round(d * 50)}px)`;
+            this.ctx.drawImage(this.dazzleCanvas, 0, 0);
+            this.ctx.restore();
+        }
+
+
         this.ctx.restore();
     }
 
@@ -2479,14 +2660,14 @@ class CandelaGame {
         this.ctx.restore();
     }
 
-    drawPlayerAvatar(player, isOpponent = false, forceReveal = false) {
+    drawPlayerAvatar(player, isOpponent = false, forceReveal = false, dazzleAmount = 0) {
         this.ctx.save();
 
         let revealAlpha = 0.0;
         if (forceReveal) {
             revealAlpha = 1.0;
         } else {
-            revealAlpha = (player.id === 0) ? 
+            revealAlpha = (player.id === 0) ?
                 this.checkIsOpponentLit(this.players[1], this.players[0], null, null) :
                 this.checkIsOpponentLit(this.players[0], this.players[1], null, null);
         }
@@ -2536,30 +2717,58 @@ class CandelaGame {
                 return; // Not visible at all
             }
 
-            this.ctx.globalAlpha = revealAlpha; // Fade out effect!
+            const d = Math.min(1.0, dazzleAmount);
 
-            // Draw pure black body (like decor)
-            this.ctx.fillStyle = '#0f172a';
-            this.ctx.shadowBlur = 0; // No glow
-            this.ctx.beginPath();
-            this.ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
-            this.ctx.fill();
+            if (d > 0.1) {
+                // DAZZLED: enemy sprite disappears completely into the blinding light beam
+                const dazzleAlpha = Math.max(0, 1.0 - (d - 0.1) * 2.0); // Rapidly fades to 0
+                if (dazzleAlpha <= 0) {
+                    this.ctx.restore();
+                    return; // Completely hidden
+                }
+                this.ctx.globalAlpha = revealAlpha * dazzleAlpha;
 
-            // Outline matches the walls/obstacles color
-            this.ctx.strokeStyle = '#334155';
-            this.ctx.lineWidth = 2;
-            this.ctx.beginPath();
-            this.ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
-            this.ctx.stroke();
+                // Draw standard normal avatar fading out
+                this.ctx.fillStyle = '#0f172a';
+                this.ctx.beginPath();
+                this.ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+                this.ctx.fill();
 
-            // Dark Gun Barrel
-            this.ctx.strokeStyle = '#334155';
-            this.ctx.lineWidth = 4;
-            this.ctx.lineCap = 'round';
-            this.ctx.beginPath();
-            this.ctx.moveTo(player.x, player.y);
-            this.ctx.lineTo(bx, by);
-            this.ctx.stroke();
+                this.ctx.strokeStyle = '#334155';
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+                this.ctx.arc(player.x, player.y, player.radius - 1, 0, Math.PI * 2);
+                this.ctx.stroke();
+
+                this.ctx.restore();
+                return;
+            } else {
+                // Normal opponent rendering (no dazzle)
+                this.ctx.globalAlpha = revealAlpha;
+
+                // Draw pure black body (like decor)
+                this.ctx.fillStyle = '#0f172a';
+                this.ctx.shadowBlur = 0;
+                this.ctx.beginPath();
+                this.ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+                this.ctx.fill();
+
+                // Outline matches the walls/obstacles color
+                this.ctx.strokeStyle = '#334155';
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+                this.ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+                this.ctx.stroke();
+
+                // Dark Gun Barrel
+                this.ctx.strokeStyle = '#334155';
+                this.ctx.lineWidth = 4;
+                this.ctx.lineCap = 'round';
+                this.ctx.beginPath();
+                this.ctx.moveTo(player.x, player.y);
+                this.ctx.lineTo(bx, by);
+                this.ctx.stroke();
+            }
         }
 
         // Muzzle Flash Light Flare (Star burst)
@@ -2671,7 +2880,7 @@ class CandelaGame {
         const secs = Math.floor(Math.max(0, this.roundTimer) % 60);
         const timerEl = document.getElementById('round-timer');
         timerEl.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-        
+
         if (this.roundTimer <= 10) {
             timerEl.style.color = '#ff0055';
             timerEl.style.textShadow = '0 0 15px rgba(255, 0, 85, 0.8)';
