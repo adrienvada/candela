@@ -2676,7 +2676,7 @@ class CandelaGame {
         this.ctx.setLineDash([6, 6]);
         this.ctx.moveTo(startX, startY);
         this.ctx.lineTo(endX, endY);
-        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.087)';
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
         this.ctx.lineWidth = 1.0;
         this.ctx.stroke();
         this.ctx.restore();
