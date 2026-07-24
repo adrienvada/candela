@@ -1392,7 +1392,7 @@ class CandelaGame {
         if (player.shootCooldown > 0) return;
 
         player.shootCooldown = player.maxCooldown;
-        player.lastMuzzleFlash = 0.5; // 0.5s gradual light bloom fade (2.0s / 4)!
+        player.lastMuzzleFlash = 1.5; // 1.5s light decay curve after firing
         player.screenShake = 0.8;
 
         const barrelOffset = player.radius + 10;
@@ -1431,7 +1431,7 @@ class CandelaGame {
             const closest = player.getClosestPointOnSegment(target.x, target.y, shotSegment.p1, shotSegment.p2);
             const dist = Math.hypot(target.x - closest.x, target.y - closest.y);
 
-            const playerHitbox = target.radius; // Exact circle of the player
+            const playerHitbox = target.radius * 1.2; // 1.2x enlarged player hitbox
             if (dist <= playerHitbox) {
                 const distFromBarrel = Math.hypot(closest.x - startX, closest.y - startY);
                 if (distFromBarrel < minOppDist) {
@@ -2297,9 +2297,9 @@ class CandelaGame {
         offCtx.arc(viewer.x, viewer.y, 50, 0, Math.PI * 2);
         offCtx.fill();
 
-        // Cut Muzzle Flash Light Spheres (0.5s gradual fade)
+        // Cut Muzzle Flash Light Spheres (1.5s gradual fade)
         if (viewer.lastMuzzleFlash > 0) {
-            const ratio = viewer.lastMuzzleFlash / 0.5;
+            const ratio = viewer.lastMuzzleFlash / 1.5;
             const flashRadius = 40 + ratio * 180;
             offCtx.save();
             offCtx.globalAlpha = Math.max(0, ratio);
@@ -2310,7 +2310,7 @@ class CandelaGame {
         }
 
         if (opponent.lastMuzzleFlash > 0) {
-            const ratio = opponent.lastMuzzleFlash / 0.5;
+            const ratio = opponent.lastMuzzleFlash / 1.5;
             const flashRadius = 40 + ratio * 180;
             offCtx.save();
             offCtx.globalAlpha = Math.max(0, ratio);
@@ -2433,7 +2433,10 @@ class CandelaGame {
 
         // 4. Did opponent just fire a shot (Muzzle Flash)?
         if (opponent.lastMuzzleFlash > 0) {
-            const flashFade = opponent.lastMuzzleFlash / 0.25; // Fades out over 0.25s
+            // Smooth exponent decay curve over 1.5 seconds.
+            // Starts at 1.0 (100% visible) and flattens out smoothly down to 0.0001 (0.01% visibility) at 1.5s.
+            const t = Math.min(1.0, (1.5 - opponent.lastMuzzleFlash) / 1.5); // 0 at shot, 1 at 1.5s
+            const flashFade = Math.pow(0.0001, t);
             revealFactor = Math.max(revealFactor, flashFade);
         }
 
@@ -2785,7 +2788,7 @@ class CandelaGame {
 
         // Muzzle Flash Light Flare (Star burst)
         if (player.lastMuzzleFlash > 0) {
-            const flashRatio = player.lastMuzzleFlash / 0.5;
+            const flashRatio = player.lastMuzzleFlash / 1.5;
             this.ctx.save();
             this.ctx.translate(bx, by);
 
