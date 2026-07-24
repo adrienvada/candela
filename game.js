@@ -2,6 +2,7 @@
  * CANDELA 2D - Game Engine
  * High-performance 2D Tactical Split-Screen Shooter
  * Pure HTML5 Canvas & Web Audio API (Vanilla JS)
+ * V0.1
  */
 
 // ==========================================
