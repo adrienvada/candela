@@ -162,23 +162,8 @@ class AudioEngine {
     }
 
     playCooldownReady() {
-        if (!this.ctx) return;
-        const t = this.ctx.currentTime;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(880, t);
-        osc.frequency.setValueAtTime(1760, t + 0.05);
-
-        gain.gain.setValueAtTime(0.15, t);
-        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
-
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-
-        osc.start(t);
-        osc.stop(t + 0.1);
+        // Reload sound disabled
+        return;
     }
 
     playAmbientDrone() {
@@ -766,7 +751,6 @@ class Player {
             this.shootCooldown -= dt;
             if (this.shootCooldown <= 0) {
                 this.shootCooldown = 0;
-                audioEngine.playCooldownReady();
             }
         }
 
@@ -2349,6 +2333,11 @@ class CandelaGame {
         // 4. Draw Map Obstacles
         this.drawMapObstacles();
 
+        // 4.5. Draw Viewer's Dotted Sightline (Drawn before darkness fog overlay, so it is only visible in lit areas & fades with light)
+        if (viewer.hp > 0) {
+            this.drawPlayerSightline(viewer);
+        }
+
         // 5. Overlay the Darkness Fog Buffer on Viewport (Under Avatars & Particles)
         this.ctx.drawImage(offCanvas, camX, camY);
 
@@ -2658,6 +2647,28 @@ class CandelaGame {
         this.ctx.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2);
         this.ctx.fill();
 
+        this.ctx.restore();
+    }
+
+    drawPlayerSightline(player) {
+        if (!player || player.hp <= 0) return;
+
+        const barrelLen = player.radius + 14;
+        const startX = player.x + Math.cos(player.angle) * barrelLen;
+        const startY = player.y + Math.sin(player.angle) * barrelLen;
+
+        const maxDist = 5000;
+        const endX = startX + Math.cos(player.angle) * maxDist;
+        const endY = startY + Math.sin(player.angle) * maxDist;
+
+        this.ctx.save();
+        this.ctx.beginPath();
+        this.ctx.setLineDash([6, 6]);
+        this.ctx.moveTo(startX, startY);
+        this.ctx.lineTo(endX, endY);
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.087)';
+        this.ctx.lineWidth = 1.0;
+        this.ctx.stroke();
         this.ctx.restore();
     }
 
