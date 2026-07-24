@@ -583,15 +583,13 @@ class RaycastEngine {
         const s_dx = segment.p2.x - segment.p1.x;
         const s_dy = segment.p2.y - segment.p1.y;
 
-        const r_mag = Math.hypot(r_dx, r_dy);
-        const s_mag = Math.hypot(s_dx, s_dy);
-
-        if (r_dx / r_mag === s_dx / s_mag && r_dy / r_mag === s_dy / s_mag) {
-            return null; // Parallel
+        const denom = r_dx * s_dy - r_dy * s_dx;
+        if (Math.abs(denom) < 1e-9) {
+            return null; // Parallel or collinear
         }
 
-        const T2 = (r_dx * (s_py - r_py) + r_dy * (r_px - s_px)) / (s_dx * r_dy - s_dy * r_dx);
-        const T1 = (s_px + s_dx * T2 - r_px) / r_dx;
+        const T1 = ((s_px - r_px) * s_dy - (s_py - r_py) * s_dx) / denom;
+        const T2 = ((s_px - r_px) * r_dy - (s_py - r_py) * r_dx) / denom;
 
         if (T1 < 0) return null;
         if (T2 < 0 || T2 > 1) return null;
@@ -1400,7 +1398,7 @@ class CandelaGame {
         if (player.shootCooldown > 0) return;
 
         player.shootCooldown = player.maxCooldown;
-        player.lastMuzzleFlash = 1.5; // 1.5s light decay curve after firing
+        player.lastMuzzleFlash = 2.5; // 2.5s light decay curve after firing
         player.screenShake = 0.8;
 
         const barrelOffset = player.radius + 10;
@@ -2305,9 +2303,9 @@ class CandelaGame {
         offCtx.arc(viewer.x, viewer.y, 50, 0, Math.PI * 2);
         offCtx.fill();
 
-        // Cut Muzzle Flash Light Spheres (1.5s gradual fade)
-        if (viewer.lastMuzzleFlash > 0) {
-            const ratio = viewer.lastMuzzleFlash / 1.5;
+        // Cut Muzzle Flash Light Spheres (0.5s rapid fade)
+        if (viewer.lastMuzzleFlash > 2.0) {
+            const ratio = (viewer.lastMuzzleFlash - 2.0) / 0.5;
             const flashRadius = 40 + ratio * 180;
             offCtx.save();
             offCtx.globalAlpha = Math.max(0, ratio);
@@ -2317,8 +2315,8 @@ class CandelaGame {
             offCtx.restore();
         }
 
-        if (opponent.lastMuzzleFlash > 0) {
-            const ratio = opponent.lastMuzzleFlash / 1.5;
+        if (opponent.lastMuzzleFlash > 2.0) {
+            const ratio = (opponent.lastMuzzleFlash - 2.0) / 0.5;
             const flashRadius = 40 + ratio * 180;
             offCtx.save();
             offCtx.globalAlpha = Math.max(0, ratio);
@@ -2350,10 +2348,10 @@ class CandelaGame {
         this.ctx.drawImage(offCanvas, camX, camY);
 
         // 6. Draw Light Beams Aesthetics (Glow Gradients)
-        this.drawFlashlightGlow(viewer, viewerLightPoly, 0);
+        this.drawFlashlightGlow(viewer, viewerLightPoly, 0, null, camX, camY, vw, vh);
 
         if (opponent.flashlightOn) {
-            this.drawFlashlightGlow(opponent, opponentLightPoly, viewer.dazzleAmount, oppWideLightPoly);
+            this.drawFlashlightGlow(opponent, opponentLightPoly, viewer.dazzleAmount, oppWideLightPoly, camX, camY, vw, vh);
         }
 
         // 7. Draw Bullets & Particles
@@ -2441,10 +2439,10 @@ class CandelaGame {
 
         // 4. Did opponent just fire a shot (Muzzle Flash)?
         if (opponent.lastMuzzleFlash > 0) {
-            // Smooth exponent decay curve over 1.5 seconds.
-            // Starts at 1.0 (100% visible) and flattens out smoothly down to 0.0001 (0.01% visibility) at 1.5s.
-            const t = Math.min(1.0, (1.5 - opponent.lastMuzzleFlash) / 1.5); // 0 at shot, 1 at 1.5s
-            const flashFade = Math.pow(0.0001, t);
+            // Smooth quadratic decay curve over 2.5 seconds.
+            // Starts at 1.0 (100% visible) and fades out smoothly to 0 at 2.5s.
+            const t = Math.min(1.0, (2.5 - opponent.lastMuzzleFlash) / 2.5); // 0 at shot, 1 at 2.5s
+            const flashFade = Math.pow(1.0 - t, 2);
             revealFactor = Math.max(revealFactor, flashFade);
         }
 
@@ -2504,7 +2502,7 @@ class CandelaGame {
         this.ctx.restore();
     }
 
-    drawFlashlightGlow(player, lightPoly, dazzleAmount = 0, wideLightPoly = null) {
+    drawFlashlightGlow(player, lightPoly, dazzleAmount = 0, wideLightPoly = null, camX = 0, camY = 0, vw = 0, vh = 0) {
         if (!player.flashlightOn || !lightPoly || lightPoly.length === 0) return;
 
         this.ctx.save();
@@ -2541,8 +2539,8 @@ class CandelaGame {
 
         // When dazzled, flood the beam with white and widen the visible cone
         if (d > 0.1 && wideLightPoly) {
-            const w = this.canvas.width;
-            const h = this.canvas.height;
+            const w = vw || this.canvas.width;
+            const h = vh || this.canvas.height;
             if (!this.dazzleCanvas || this.dazzleCanvas.width !== w || this.dazzleCanvas.height !== h) {
                 this.dazzleCanvas = document.createElement('canvas');
                 this.dazzleCanvas.width = w;
@@ -2553,6 +2551,7 @@ class CandelaGame {
             const dCtx = this.dazzleCtx;
             dCtx.clearRect(0, 0, w, h);
             dCtx.save();
+            dCtx.translate(-camX, -camY);
 
             // Clip to wideLightPoly in offscreen context so it respects walls
             dCtx.beginPath();
@@ -2614,7 +2613,7 @@ class CandelaGame {
             // Draw offscreen buffer onto main canvas WITH A REAL BLUR FILTER (blurs sharp clip & peak vertex!)
             this.ctx.save();
             this.ctx.filter = `blur(${Math.round(d * 50)}px)`;
-            this.ctx.drawImage(this.dazzleCanvas, 0, 0);
+            this.ctx.drawImage(this.dazzleCanvas, camX, camY);
             this.ctx.restore();
         }
 
@@ -2795,8 +2794,8 @@ class CandelaGame {
         }
 
         // Muzzle Flash Light Flare (Star burst)
-        if (player.lastMuzzleFlash > 0) {
-            const flashRatio = player.lastMuzzleFlash / 1.5;
+        if (player.lastMuzzleFlash > 2.0) {
+            const flashRatio = (player.lastMuzzleFlash - 2.0) / 0.5;
             this.ctx.save();
             this.ctx.translate(bx, by);
 
