@@ -236,11 +236,17 @@ class InputManager {
         this.mouseActive = false;
 
         window.addEventListener('keydown', (e) => {
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
+                e.preventDefault();
+            }
             if (e.code) this.keys[e.code] = true;
             if (e.key) this.keys[e.key.toLowerCase()] = true;
         });
 
         window.addEventListener('keyup', (e) => {
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
+                e.preventDefault();
+            }
             if (e.code) this.keys[e.code] = false;
             if (e.key) this.keys[e.key.toLowerCase()] = false;
         });
@@ -280,7 +286,8 @@ class InputManager {
         if (rawGps) {
             for (let i = 0; i < rawGps.length; i++) {
                 const gp = rawGps[i];
-                if (gp && gp.connected !== false) {
+                // Filtrer les manettes fantômes (souvent créées par macOS/Chrome)
+                if (gp && gp.connected !== false && gp.buttons && gp.buttons.length > 0 && gp.axes && gp.axes.length > 0) {
                     validGps.push(gp);
                 }
             }

@@ -298,7 +298,7 @@ class InputManager {
 
     getPlayerInput(playerIndex, playerPos, cameraViewport) {
         this.update();
-        const gp = this.gamepads[playerIndex];
+        let gp = this.gamepads[playerIndex];
 
         let moveX = 0;
         let moveY = 0;
@@ -314,50 +314,83 @@ class InputManager {
             moveX = lStick.x;
             moveY = lStick.y;
 
-            // Right Stick: 360° Aiming
-            // Check standard axes [2, 3] and alternate non-standard mappings [3, 4] or [2, 5]
-            let rx = 0, ry = 0;
+            // D-Pad Movement Fallback
+            if (moveX === 0 && moveY === 0 && gp.buttons) {
+                const isBtnPressed = (idx) => {
+                    const b = gp.buttons[idx];
+                    if (!b) return false;
+                    return typeof b === 'object' ? (b.pressed || b.value > 0.5) : (b === 1);
+                };
+                if (isBtnPressed(12)) moveY -= 1; // D-pad Up
+                if (isBtnPressed(13)) moveY += 1; // D-pad Down
+                if (isBtnPressed(14)) moveX -= 1; // D-pad Left
+                if (isBtnPressed(15)) moveX += 1; // D-pad Right
+                if (moveX !== 0 && moveY !== 0) {
+                    const norm = 1 / Math.sqrt(2);
+                    moveX *= norm;
+                    moveY *= norm;
+                }
+            }
 
-            const rCandidate1 = this.applyDeadzone(gp.axes[2] || 0, gp.axes[3] || 0);
-            if (Math.hypot(rCandidate1.x, rCandidate1.y) > 0.08) {
-                rx = rCandidate1.x;
-                ry = rCandidate1.y;
-            } else if (gp.axes.length >= 5) {
-                const rCandidate2 = this.applyDeadzone(gp.axes[3] || 0, gp.axes[4] || 0);
-                if (Math.hypot(rCandidate2.x, rCandidate2.y) > 0.08) {
-                    rx = rCandidate2.x;
-                    ry = rCandidate2.y;
-                } else if (gp.axes.length >= 6) {
-                    const rCandidate3 = this.applyDeadzone(gp.axes[2] || 0, gp.axes[5] || 0);
-                    if (Math.hypot(rCandidate3.x, rCandidate3.y) > 0.08) {
-                        rx = rCandidate3.x;
-                        ry = rCandidate3.y;
-                    }
+            // Right Stick: 360° Aiming
+            let rx = 0, ry = 0;
+            const isStandard = gp.mapping === 'standard';
+
+            if (isStandard) {
+                const rCand = this.applyDeadzone(gp.axes[2] || 0, gp.axes[3] || 0);
+                rx = rCand.x;
+                ry = rCand.y;
+            } else {
+                // Non-standard mapping fallback (macOS Bluetooth / DualSense / DirectInput)
+                let rAxisX = 2;
+                let rAxisY = 3;
+
+                // Check if axes[2] is a trigger resting at <= -0.5
+                if (gp.axes.length >= 4 && gp.axes[2] !== undefined && gp.axes[2] < -0.5) {
+                    rAxisX = 3;
+                    rAxisY = 4;
+                }
+
+                if (gp.axes.length > rAxisY) {
+                    const rCand = this.applyDeadzone(gp.axes[rAxisX] || 0, gp.axes[rAxisY] || 0);
+                    rx = rCand.x;
+                    ry = rCand.y;
                 }
             }
 
             if (Math.hypot(rx, ry) > 0.08) {
                 aimAngle = Math.atan2(ry, rx);
-                this.mouseActive = false; // Right stick overrides mouse
+                if (playerIndex === 0) this.mouseActive = false;
             }
 
             // Triggers: LT/L2 (Light), RT/R2 (Shoot)
-            const ltVal = gp.buttons[6] ? (typeof gp.buttons[6] === 'object' ? gp.buttons[6].value : gp.buttons[6]) : 0;
-            const rtVal = gp.buttons[7] ? (typeof gp.buttons[7] === 'object' ? gp.buttons[7].value : gp.buttons[7]) : 0;
+            const getVal = (idx) => {
+                const b = gp.buttons[idx];
+                if (!b) return 0;
+                if (typeof b === 'number') return b;
+                return b.value !== undefined ? b.value : (b.pressed ? 1 : 0);
+            };
 
-            light = ltVal > 0.2 || (gp.buttons[4] && (gp.buttons[4].pressed || gp.buttons[4] === 1)); // LT or LB
-            shoot = rtVal > 0.2 || (gp.buttons[5] && (gp.buttons[5].pressed || gp.buttons[5] === 1)); // RT or RB
+            const ltVal = getVal(6);
+            const rtVal = getVal(7);
+            const lbPressed = gp.buttons[4] && (gp.buttons[4].pressed || getVal(4) > 0.5);
+            const rbPressed = gp.buttons[5] && (gp.buttons[5].pressed || getVal(5) > 0.5);
 
-            // Sprint: any face button [0,1,2,3]
+            light = ltVal > 0.25 || lbPressed;
+            shoot = rtVal > 0.25 || rbPressed;
+
+            // Sprint: any face button [0,1,2,3] or L3/R3 [10,11]
             for (let i = 0; i < 4; i++) {
-                if (gp.buttons[i] && (gp.buttons[i].pressed || gp.buttons[i] === 1)) {
+                if (gp.buttons[i] && (gp.buttons[i].pressed || getVal(i) > 0.5)) {
                     sprint = true;
                     break;
                 }
             }
+            if (gp.buttons[10] && (gp.buttons[10].pressed || getVal(10) > 0.5)) sprint = true;
+            if (gp.buttons[11] && (gp.buttons[11].pressed || getVal(11) > 0.5)) sprint = true;
         }
 
-        // 2. KEYBOARD & MOUSE FALLBACK
+        // 2. KEYBOARD & MOUSE FALLBACK / OVERLAY
         if (playerIndex === 0) {
             // Keyboard Movement for P1 (WASD / ZQSD for QWERTY & AZERTY)
             if (moveX === 0 && moveY === 0) {
@@ -374,17 +407,15 @@ class InputManager {
             }
 
             // Mouse Aiming for P1 Viewport
-            if (aimAngle === null && (this.mouseActive || !gp) && cameraViewport) {
+            if (aimAngle === null && cameraViewport) {
                 const mouseWorldX = this.mousePos.x - cameraViewport.x + cameraViewport.camX - cameraViewport.width / 2;
                 const mouseWorldY = this.mousePos.y - cameraViewport.y + cameraViewport.camY - cameraViewport.height / 2;
                 aimAngle = Math.atan2(mouseWorldY - playerPos.y, mouseWorldX - playerPos.x);
             }
 
-            if (!gp) {
-                if (this.mouseButtons.left || this.keys['KeyE'] || this.keys['e'] || this.keys['KeyF'] || this.keys['f']) shoot = true;
-                if (this.mouseButtons.right || this.keys['Space'] || this.keys[' ']) light = true;
-                if (this.keys['ShiftLeft']) sprint = true;
-            }
+            if (this.mouseButtons.left || this.keys['KeyE'] || this.keys['e'] || this.keys['KeyF'] || this.keys['f']) shoot = true;
+            if (this.mouseButtons.right || this.keys['Space'] || this.keys[' ']) light = true;
+            if (this.keys['ShiftLeft']) sprint = true;
         } else if (playerIndex === 1) {
             // P2 Keyboard Controls (Arrows + IJKL Aim + O/P/M)
             if (moveX === 0 && moveY === 0) {
@@ -410,11 +441,9 @@ class InputManager {
                 aimAngle = Math.atan2(aimY, aimX);
             }
 
-            if (!gp) {
-                if (this.keys['KeyO'] || this.keys['o'] || this.keys['Numpad0'] || this.keys['Numpad1'] || this.keys['Numpad4']) shoot = true;
-                if (this.keys['KeyP'] || this.keys['p'] || this.keys['NumpadControl'] || this.keys['Numpad2'] || this.keys['Numpad5']) light = true;
-                if (this.keys['KeyM'] || this.keys['m'] || this.keys['Semicolon'] || this.keys['ShiftRight']) sprint = true;
-            }
+            if (this.keys['KeyO'] || this.keys['o'] || this.keys['Numpad0'] || this.keys['Numpad1'] || this.keys['Numpad4']) shoot = true;
+            if (this.keys['KeyP'] || this.keys['p'] || this.keys['NumpadControl'] || this.keys['Numpad2'] || this.keys['Numpad5']) light = true;
+            if (this.keys['KeyM'] || this.keys['m'] || this.keys['Semicolon'] || this.keys['ShiftRight']) sprint = true;
         }
 
         return { moveX, moveY, aimAngle, shoot, light, sprint, hasGamepad: !!gp };
@@ -424,10 +453,13 @@ class InputManager {
         this.update();
         const gp = this.gamepads[playerIndex];
 
-        if (gp && gp.buttons && gp.buttons[0]) {
-            const btn = gp.buttons[0];
-            const pressed = typeof btn === 'object' ? (btn.pressed || btn.value > 0.15) : (btn === 1);
-            if (pressed) return true;
+        if (gp && gp.buttons) {
+            for (let i = 0; i < Math.min(4, gp.buttons.length); i++) {
+                const btn = gp.buttons[i];
+                if (!btn) continue;
+                const pressed = typeof btn === 'object' ? (btn.pressed || btn.value > 0.4) : (btn === 1);
+                if (pressed) return true;
+            }
         }
 
         // Keyboard fallback: 'KeyX' or 'Space' or 'Enter'
@@ -442,8 +474,16 @@ class InputManager {
 
         if (gp && gp.buttons) {
             for (let i = 0; i < gp.buttons.length; i++) {
+                // Ignore trigger resting noise (buttons 6 and 7) unless pulled > 0.4
+                if (i === 6 || i === 7) {
+                    const b = gp.buttons[i];
+                    const val = typeof b === 'object' ? b.value : b;
+                    if (val > 0.4) return true;
+                    continue;
+                }
                 const btn = gp.buttons[i];
-                const pressed = typeof btn === 'object' ? (btn.pressed || btn.value > 0.15) : (btn === 1);
+                if (!btn) continue;
+                const pressed = typeof btn === 'object' ? (btn.pressed || btn.value > 0.4) : (btn === 1);
                 if (pressed) return true;
             }
         }
