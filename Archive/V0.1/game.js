@@ -292,6 +292,15 @@ class InputManager {
                 }
             }
         }
+
+        // Prioriser les manettes avec un mapping "standard" 
+        // Chrome sur macOS crée souvent des doublons "fantômes" non-standard pour chaque vraie manette.
+        validGps.sort((a, b) => {
+            const aIsStandard = a.mapping === 'standard' ? 1 : 0;
+            const bIsStandard = b.mapping === 'standard' ? 1 : 0;
+            return bIsStandard - aIsStandard;
+        });
+
         this.gamepads[0] = validGps[0] || null;
         this.gamepads[1] = validGps[1] || null;
     }
