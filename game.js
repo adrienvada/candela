@@ -17,10 +17,16 @@ class AudioEngine {
     init() {
         if (!this.ctx) {
             const AudioCtx = window.AudioContext || window.webkitAudioContext;
-            this.ctx = new AudioCtx();
+            if (AudioCtx) {
+                try {
+                    this.ctx = new AudioCtx();
+                } catch (e) {
+                    console.warn('AudioContext init blocked or unavailable:', e);
+                }
+            }
         }
-        if (this.ctx.state === 'suspended') {
-            this.ctx.resume();
+        if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume().catch(e => console.warn('Audio resume blocked:', e));
         }
     }
 
@@ -1527,6 +1533,10 @@ class CandelaGame {
 
         this.selectedMapIndex = 0;
         this.selectedMapType = TacticalMap.MAP_LIST[0].id; // Default map: Arena Classique
+        this.loadouts = [
+            ['PISTOL', 'SHOTGUN'],
+            ['PISTOL', 'SNIPER']
+        ];
         this.p1Ready = false;
         this.p2Ready = false;
         this.p1HoldTimer = 0;
@@ -1599,11 +1609,19 @@ class CandelaGame {
         if (vPrev) vPrev.addEventListener('click', () => this.changeMapIndex(-1));
         if (vNext) vNext.addEventListener('click', () => this.changeMapIndex(1));
 
-        // Click on map card itself to cycle forward
-        const sCard = document.getElementById('start-map-card');
-        const vCard = document.getElementById('victory-map-card');
-        if (sCard) sCard.addEventListener('click', () => this.changeMapIndex(1));
-        if (vCard) vCard.addEventListener('click', () => this.changeMapIndex(1));
+        const cards = [
+            { id: 'p1-slot-1-card', p: 0, s: 0 },
+            { id: 'p1-slot-2-card', p: 0, s: 1 },
+            { id: 'p2-slot-1-card', p: 1, s: 0 },
+            { id: 'p2-slot-2-card', p: 1, s: 1 }
+        ];
+
+        cards.forEach(({ id, p, s }) => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('click', () => this.cycleWeaponChoice(p, s));
+            }
+        });
 
         const btnNext = document.getElementById('btn-next-round');
         if (btnNext) {
@@ -1613,6 +1631,62 @@ class CandelaGame {
         }
 
         this.updateMapCarouselUI();
+        this.updateWeaponCardUI(0, 0);
+        this.updateWeaponCardUI(0, 1);
+        this.updateWeaponCardUI(1, 0);
+        this.updateWeaponCardUI(1, 1);
+    }
+
+    cycleWeaponChoice(playerIndex, slotIndex) {
+        const order = ['PISTOL', 'SHOTGUN', 'SNIPER'];
+        const current = this.loadouts[playerIndex][slotIndex];
+        const nextIdx = (order.indexOf(current) + 1) % order.length;
+        const nextW = order[nextIdx];
+
+        this.loadouts[playerIndex][slotIndex] = nextW;
+        this.audioEngine.playTorchClick(true);
+        this.updateWeaponCardUI(playerIndex, slotIndex);
+    }
+
+    updateWeaponCardUI(playerIndex, slotIndex) {
+        const weaponId = this.loadouts[playerIndex][slotIndex];
+        const spec = WEAPONS[weaponId];
+        if (!spec) return;
+
+        const pStr = playerIndex === 0 ? 'p1' : 'p2';
+        const sStr = slotIndex === 0 ? 'w1' : 'w2';
+        const prefix = `${pStr}-${sStr}`;
+
+        const descMap = {
+            PISTOL: 'Polyvalent • Portée illimitée',
+            SHOTGUN: '5 Plombs • Combat rapproché',
+            SNIPER: 'Tir lourd • Longue portée'
+        };
+
+        const damageBarMap = { PISTOL: 45, SHOTGUN: 100, SNIPER: 95 };
+        const rangeBarMap = { PISTOL: 100, SHOTGUN: 25, SNIPER: 100 };
+        const rangeTextMap = { PISTOL: 'MAX', SHOTGUN: '550', SNIPER: '4500' };
+        const rateBarMap = { PISTOL: 80, SHOTGUN: 45, SNIPER: 20 };
+
+        const iconEl = document.getElementById(`${prefix}-icon`);
+        const nameEl = document.getElementById(`${prefix}-name`);
+        const descEl = document.getElementById(`${prefix}-desc`);
+        const dmgBar = document.getElementById(`${prefix}-damage-bar`);
+        const dmgVal = document.getElementById(`${prefix}-damage-val`);
+        const rngBar = document.getElementById(`${prefix}-range-bar`);
+        const rngVal = document.getElementById(`${prefix}-range-val`);
+        const rateBar = document.getElementById(`${prefix}-rate-bar`);
+        const rateVal = document.getElementById(`${prefix}-rate-val`);
+
+        if (iconEl) iconEl.textContent = spec.icon;
+        if (nameEl) nameEl.textContent = spec.name;
+        if (descEl) descEl.textContent = descMap[weaponId] || '';
+        if (dmgBar) dmgBar.style.width = `${damageBarMap[weaponId]}%`;
+        if (dmgVal) dmgVal.textContent = spec.damage;
+        if (rngBar) rngBar.style.width = `${rangeBarMap[weaponId]}%`;
+        if (rngVal) rngVal.textContent = rangeTextMap[weaponId];
+        if (rateBar) rateBar.style.width = `${rateBarMap[weaponId]}%`;
+        if (rateVal) rateVal.textContent = `${spec.cooldown}s`;
     }
 
     changeMapIndex(delta) {
@@ -1646,21 +1720,21 @@ class CandelaGame {
     }
 
     applySelectedLoadout() {
-        const p1w1 = document.getElementById('p1-w1-select')?.value || 'PISTOL';
-        const p1w2 = document.getElementById('p1-w2-select')?.value || 'SHOTGUN';
-        const p2w1 = document.getElementById('p2-w1-select')?.value || 'PISTOL';
-        const p2w2 = document.getElementById('p2-w2-select')?.value || 'SNIPER';
-
-        this.players[0].weapons = [p1w1, p1w2];
+        this.players[0].weapons = [...this.loadouts[0]];
         this.players[0].currentWeaponIndex = 0;
-        this.players[1].weapons = [p2w1, p2w2];
+        this.players[1].weapons = [...this.loadouts[1]];
         this.players[1].currentWeaponIndex = 0;
     }
 
     startGameFromStartMenu() {
-        this.audioEngine.init();
+        try {
+            this.audioEngine.init();
+        } catch (e) {
+            console.warn('Audio init warning:', e);
+        }
+        const overlay = document.getElementById('start-overlay');
+        if (overlay) overlay.classList.add('hidden');
         this.applySelectedLoadout();
-        document.getElementById('start-overlay').classList.add('hidden');
         this.map.buildMap(this.selectedMapType);
         this.gameState = 'PLAYING';
         this.resetRound();
