@@ -337,6 +337,36 @@ class InputManager {
         }
     }
 
+    triggerVibration(playerIndex, type = 'medium') {
+        const gp = this.gamepads[playerIndex];
+        let duration = 80;
+        let weak = 0.5;
+        let strong = 0.5;
+
+        if (type === 'light') {
+            duration = 30; weak = 0.2; strong = 0.1;
+        } else if (type === 'medium') {
+            duration = 80; weak = 0.5; strong = 0.4;
+        } else if (type === 'heavy') {
+            duration = 200; weak = 0.8; strong = 0.8;
+        } else if (type === 'kill') {
+            duration = 400; weak = 1.0; strong = 1.0;
+        }
+
+        if (gp && gp.vibrationActuator && gp.vibrationActuator.playEffect) {
+            try {
+                gp.vibrationActuator.playEffect('dual-rumble', {
+                    startDelay: 0,
+                    duration: duration,
+                    weakMagnitude: weak,
+                    strongMagnitude: strong
+                }).catch(() => {});
+            } catch (e) {}
+        } else if (navigator.vibrate) {
+            try { navigator.vibrate(duration); } catch (e) {}
+        }
+    }
+
     update() {
         const rawGps = navigator.getGamepads ? navigator.getGamepads() : (navigator.webkitGetGamepads ? navigator.webkitGetGamepads() : []);
         let validGps = [];
@@ -1319,12 +1349,20 @@ class Bullet {
 class ParticleSystem {
     constructor() {
         this.particles = [];
+        this.maxParticles = 120; // Strict particle capping for 60 FPS performance!
+    }
+
+    pushParticle(p) {
+        this.particles.push(p);
+        if (this.particles.length > this.maxParticles) {
+            this.particles.shift(); // Remove oldest particle to preserve frame rate
+        }
     }
 
     addSpark(x, y, baseAngle) {
         const angle = baseAngle + (Math.random() - 0.5) * 1.2;
         const speed = 100 + Math.random() * 200;
-        this.particles.push({
+        this.pushParticle({
             x, y,
             vx: Math.cos(angle) * speed,
             vy: Math.sin(angle) * speed,
@@ -1338,7 +1376,7 @@ class ParticleSystem {
     addBloodSpark(x, y, baseAngle) {
         const angle = baseAngle + (Math.random() - 0.5) * 0.8;
         const speed = 80 + Math.random() * 150;
-        this.particles.push({
+        this.pushParticle({
             x, y,
             vx: Math.cos(angle) * speed,
             vy: Math.sin(angle) * speed,
@@ -1349,8 +1387,24 @@ class ParticleSystem {
         });
     }
 
+    addDeathBloodExplosion(x, y, color) {
+        for (let i = 0; i < 20; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 120 + Math.random() * 280;
+            this.pushParticle({
+                x, y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                life: 1.0,
+                decay: 1.5 + Math.random() * 1.5,
+                size: 4 + Math.random() * 5,
+                color: color || '#ff0044'
+            });
+        }
+    }
+
     addBulletTrail(x, y) {
-        this.particles.push({
+        this.pushParticle({
             x, y,
             vx: 0, vy: 0,
             life: 1.0,
@@ -1365,7 +1419,7 @@ class ParticleSystem {
         const dy = y2 - y1;
         const dist = Math.hypot(dx, dy) || 1; // Prevent div by 0
 
-        this.particles.push({
+        this.pushParticle({
             x1: x1, y1: y1,
             x2: x2, y2: y2,
             dx: dx / dist,
@@ -1381,7 +1435,7 @@ class ParticleSystem {
     }
 
     addFloatingText(x, y, text, color) {
-        this.particles.push({
+        this.pushParticle({
             x: x,
             y: y,
             vx: (Math.random() - 0.5) * 20,
@@ -2039,6 +2093,12 @@ class CandelaGame {
                 finalImpactX = oppImpactPoint.x;
                 finalImpactY = oppImpactPoint.y;
 
+                // Hitstop micro-freeze (Axe 4)
+                this.hitstopTimer = (oppHitDamage >= 50) ? 0.08 : 0.04;
+
+                // Vibration on target controller
+                this.inputManager.triggerVibration(hitOpponent.id, 'heavy');
+
                 // Record Hit & Damage (Axe 3)
                 this.matchStats[player.id].shotsHit++;
                 this.matchStats[player.id].damageDealt += oppHitDamage;
@@ -2063,6 +2123,15 @@ class CandelaGame {
                     player.score += 500;
                     this.particleSystem.addFloatingText(oppImpactPoint.x, oppImpactPoint.y - 35, '+500 ÉLIMINATION !', '#00ff88');
                     this.addKillFeedEntry(`${player.name} ✦ ÉLIMINATION !`, '#00ff88');
+
+                    // Death Blood Explosion & Decal (Axe 4)
+                    this.particleSystem.addDeathBloodExplosion(oppImpactPoint.x, oppImpactPoint.y, hitOpponent.color);
+                    this.bulletDecals.push({ x: oppImpactPoint.x, y: oppImpactPoint.y, size: 25, isBloodPool: true, alpha: 0.8 });
+                    if (this.bulletDecals.length > 40) this.bulletDecals.shift();
+
+                    // Dual Kill Rumble on both controllers!
+                    this.inputManager.triggerVibration(player.id, 'kill');
+                    this.inputManager.triggerVibration(hitOpponent.id, 'kill');
 
                     // Round Win increment (Axe 3)
                     if (player.id === 0) this.p1RoundsWon++;
@@ -2315,6 +2384,13 @@ class CandelaGame {
         }
 
         if (this.gameState !== 'PLAYING') return;
+
+        // Hitstop micro-freeze frame (Axe 4)
+        if (this.hitstopTimer > 0) {
+            this.hitstopTimer -= dt;
+            if (this.hitstopTimer < 0) this.hitstopTimer = 0;
+            return; // Micro-pause physics delta to give impacts weight!
+        }
 
         // Slow motion effect
         let effectiveDt = dt;
@@ -2671,11 +2747,23 @@ class CandelaGame {
         this.ctx.save();
         for (let i = 0; i < this.bulletDecals.length; i++) {
             const d = this.bulletDecals[i];
-            this.ctx.globalAlpha = d.alpha * 0.5;
-            this.ctx.fillStyle = '#1a1a2e';
-            this.ctx.beginPath();
-            this.ctx.arc(d.x, d.y, d.size, 0, Math.PI * 2);
-            this.ctx.fill();
+            if (d.isBloodPool) {
+                this.ctx.globalAlpha = d.alpha * 0.85;
+                this.ctx.fillStyle = '#880022';
+                this.ctx.beginPath();
+                this.ctx.arc(d.x, d.y, d.size, 0, Math.PI * 2);
+                this.ctx.fill();
+                this.ctx.fillStyle = '#550011';
+                this.ctx.beginPath();
+                this.ctx.arc(d.x + 3, d.y + 2, d.size * 0.6, 0, Math.PI * 2);
+                this.ctx.fill();
+            } else {
+                this.ctx.globalAlpha = d.alpha * 0.5;
+                this.ctx.fillStyle = '#1a1a2e';
+                this.ctx.beginPath();
+                this.ctx.arc(d.x, d.y, d.size, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
         }
         this.ctx.restore();
 

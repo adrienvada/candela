@@ -29,13 +29,18 @@
         <!-- Dynamic Scanline Visual Overlay -->
         <div class="screen-overlay"></div>
 
-
+        <!-- Ambient Esports Neon Background Glows -->
+        <div class="ambient-glow glow-p1" aria-hidden="true"></div>
+        <div class="ambient-glow glow-p2" aria-hidden="true"></div>
 
         <!-- Start / Audio Overlay -->
         <div id="start-overlay" class="modal-overlay">
             <div class="modal-card">
-                <h1>CANDELA 2D</h1>
-                <p class="subtitle">TACTICAL 2D MULTIPLAYER</p>
+                <div class="modal-glow-header">
+                    <span class="glow-tag floating-tag">TACTICAL MULTIPLAYER</span>
+                    <h1 class="glitch-title" data-text="CANDELA 2D">CANDELA 2D</h1>
+                    <p class="subtitle">ARENA LIGHT & SHADOW COMBAT</p>
+                </div>
 
                 <!-- Notice Expérience Optimale & Keyboard Layout -->
                 <div id="gamepad-notice" class="gamepad-notice"
@@ -229,7 +234,10 @@
 
                     <!-- CENTER MAP & VS BANNER -->
                     <div class="center-vs-panel">
-                        <div class="vs-badge">VS</div>
+                        <div class="vs-badge-wrapper">
+                            <div class="vs-glow-ring"></div>
+                            <div class="vs-badge">VS</div>
+                        </div>
 
                         <!-- Format de Match Selector (Axe 3) -->
                         <div class="match-format-box">
