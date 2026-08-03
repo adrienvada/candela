@@ -2296,6 +2296,47 @@ class CandelaGame {
         } else if (!isActionPressed) {
             this.actionDebounce[playerIndex] = false;
         }
+
+        // Bumper L1 / R1 triggers option cycling on currently focused card!
+        const gp = this.inputManager.gamepads[playerIndex];
+        const l1Pressed = gp && gp.buttons[4] && gp.buttons[4].pressed;
+        const r1Pressed = gp && gp.buttons[5] && gp.buttons[5].pressed;
+
+        if (!this.bumperDebounce) this.bumperDebounce = [false, false];
+
+        if ((l1Pressed || r1Pressed) && !this.bumperDebounce[playerIndex]) {
+            this.bumperDebounce[playerIndex] = true;
+            if (curr) {
+                if (curr.id === 'focus-card-format') {
+                    this.cycleMatchFormat();
+                } else if (curr.id === 'focus-card-map') {
+                    this.changeMapIndex(r1Pressed ? 1 : -1);
+                } else if (curr.classList.contains('weapon-slot-card')) {
+                    const pIdx = parseInt(curr.dataset.player, 10);
+                    const sIdx = parseInt(curr.dataset.slot, 10);
+                    this.cycleWeaponChoice(pIdx, sIdx);
+                }
+            }
+        } else if (!l1Pressed && !r1Pressed) {
+            this.bumperDebounce[playerIndex] = false;
+        }
+    }
+
+    cycleMatchFormat() {
+        const formats = ['BO1', 'BO3', 'BO5'];
+        const currentIdx = formats.indexOf(this.matchMode || 'BO3');
+        const nextFormat = formats[(currentIdx + 1) % formats.length];
+        this.setMatchFormat(nextFormat);
+
+        const formatBtns = document.querySelectorAll('.format-btn');
+        formatBtns.forEach(btn => {
+            if (btn.dataset.format === nextFormat) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+        this.audioEngine.playTorchClick(true);
     }
 
     updateMenuCursors(dt) {

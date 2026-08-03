@@ -44,20 +44,19 @@
 
                 <!-- TOP ROW: MATCH FORMAT & MAP SELECTION CAROUSEL WITH PREVIEWS -->
                 <div class="top-setup-banner">
-                    <!-- Format de Match Selector -->
-                    <div class="match-format-box">
-                        <span class="format-label">FORMAT DE MATCH</span>
+                    <!-- Format de Match Selector (Unified Card) -->
+                    <div class="match-format-box focusable-ui" id="focus-card-format" tabindex="0" onclick="game.cycleMatchFormat()">
+                        <span class="format-label">FORMAT DE MATCH (X / L1 / R1)</span>
                         <div class="format-btn-group">
-                            <button class="format-btn focusable-ui" id="btn-bo1" data-format="BO1" tabindex="0">Bo1</button>
-                            <button class="format-btn active focusable-ui" id="btn-bo3" data-format="BO3" tabindex="0">Bo3</button>
-                            <button class="format-btn focusable-ui" id="btn-bo5" data-format="BO5" tabindex="0">Bo5</button>
+                            <button class="format-btn" id="btn-bo1" data-format="BO1">Bo1</button>
+                            <button class="format-btn active" id="btn-bo3" data-format="BO3">Bo3</button>
+                            <button class="format-btn" id="btn-bo5" data-format="BO5">Bo5</button>
                         </div>
                     </div>
 
-                    <!-- Map Selection Carousel with Thumbnail Previews -->
+                    <!-- Map Selection Carousel (Unified Card) -->
                     <div class="map-carousel-wrapper">
-                        <button id="start-map-prev" class="map-nav-btn focusable-ui" title="Carte précédente (L1)" tabindex="0">◀</button>
-                        <div id="start-map-card" class="map-card focusable-ui" tabindex="0">
+                        <div id="focus-card-map" class="map-card focusable-ui" tabindex="0" onclick="game.changeMapIndex(1)">
                             <!-- Map Preview Thumbnail -->
                             <div class="map-preview-wrap" id="start-map-preview-wrap">
                                 <svg class="map-preview-svg" viewBox="0 0 100 100">
@@ -74,7 +73,6 @@
                                 <div id="start-map-size" class="map-card-size">1400 × 1400 px</div>
                             </div>
                         </div>
-                        <button id="start-map-next" class="map-nav-btn focusable-ui" title="Carte suivante (R1)" tabindex="0">▶</button>
                     </div>
                 </div>
 

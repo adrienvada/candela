@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Test D-Pad Navigation & Cycling</title>
+</head>
+<body style="margin: 0; background: #000;">
+    <iframe id="gameFrame" src="../index.html" style="width: 100vw; height: 100vh; border: none;"></iframe>
+
+    <script>
+        const iframe = document.getElementById('gameFrame');
+        iframe.onload = () => {
+            const win = iframe.contentWindow;
+
+            // Connect simulated gamepad for P1
+            const fakeGp1 = {
+                id: 'DualSense (SIMULATED P1)',
+                index: 0,
+                connected: true,
+                timestamp: performance.now(),
+                mapping: 'standard',
+                axes: [1.0, 0, 0, 0], // Move stick right!
+                buttons: Array(17).fill(0).map((_, i) => ({ pressed: false, value: 0.0 }))
+            };
+
+            win.navigator.getGamepads = () => [fakeGp1, null];
+            win.dispatchEvent(new CustomEvent('gamepadconnected', { gamepad: fakeGp1 }));
+
+            // Step 1: Move focus right onto Map Card
+            setTimeout(() => {
+                fakeGp1.axes = [0, 0, 0, 0];
+                // Step 2: Press R1 (button 5) to cycle map!
+                fakeGp1.buttons[5] = { pressed: true, value: 1.0 };
+                setTimeout(() => {
+                    fakeGp1.buttons[5] = { pressed: false, value: 0.0 };
+                    console.log("🎮 Map cycling simulation complete!");
+                }, 200);
+            }, 500);
+        };
+    </script>
+</body>
+</html>
