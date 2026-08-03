@@ -237,17 +237,23 @@ class InputManager {
 
         // Keyboard & Mouse State
         this.keys = {};
+        this.keyCodes = {};
+        this.detectedLayout = 'DÉTECTION...';
+
         this.mousePos = { x: 0, y: 0 };
         this.mouseButtons = { left: false, right: false };
         this.mouseActive = false;
 
+        this.initKeyboardLayoutDetection();
+
         window.addEventListener('keydown', (e) => {
-            if (e.code) this.keys[e.code] = true;
+            if (e.code) this.keyCodes[e.code] = true;
             if (e.key) this.keys[e.key.toLowerCase()] = true;
+            this.detectLayoutFromKeyEvent(e);
         });
 
         window.addEventListener('keyup', (e) => {
-            if (e.code) this.keys[e.code] = false;
+            if (e.code) this.keyCodes[e.code] = false;
             if (e.key) this.keys[e.key.toLowerCase()] = false;
         });
 
@@ -278,6 +284,57 @@ class InputManager {
             console.log('Gamepad disconnected:', e.gamepad.id, e.gamepad.index);
             this.update();
         });
+    }
+
+    async initKeyboardLayoutDetection() {
+        if (navigator.keyboard && navigator.keyboard.getLayoutMap) {
+            try {
+                const map = await navigator.keyboard.getLayoutMap();
+                const qKey = map.get('KeyQ');
+                const wKey = map.get('KeyW');
+                if (qKey === 'a' || wKey === 'z') {
+                    this.setLayoutName('AZERTY (FR)');
+                    return;
+                } else if (wKey === 'y') {
+                    this.setLayoutName('QWERTZ (DE)');
+                    return;
+                } else if (qKey === 'q') {
+                    this.setLayoutName('QWERTY (US)');
+                    return;
+                }
+            } catch (e) {}
+        }
+        // Fallback locale check
+        const lang = (navigator.language || '').toLowerCase();
+        if (lang.startsWith('fr')) {
+            this.setLayoutName('AZERTY (FR)');
+        } else if (lang.startsWith('de')) {
+            this.setLayoutName('QWERTZ (DE)');
+        } else {
+            this.setLayoutName('QWERTY (US)');
+        }
+    }
+
+    setLayoutName(name) {
+        this.detectedLayout = name;
+        const badge = document.getElementById('layout-badge');
+        if (badge) {
+            badge.textContent = `🌐 CLAVIER DÉTECTÉ: ${name}`;
+        }
+    }
+
+    detectLayoutFromKeyEvent(e) {
+        if (!e.code || !e.key) return;
+        const code = e.code;
+        const key = e.key.toLowerCase();
+
+        if ((code === 'KeyQ' && key === 'a') || (code === 'KeyW' && key === 'z')) {
+            this.setLayoutName('AZERTY (FR)');
+        } else if (code === 'KeyW' && key === 'y') {
+            this.setLayoutName('QWERTZ (DE)');
+        } else if (code === 'KeyQ' && key === 'q') {
+            this.setLayoutName('QWERTY (US)');
+        }
     }
 
     update() {
@@ -404,12 +461,17 @@ class InputManager {
 
         // 2. KEYBOARD & MOUSE FALLBACK / OVERLAY
         if (playerIndex === 0) {
-            // Keyboard Movement for P1 (WASD / ZQSD for QWERTY & AZERTY)
+            // Universal Keyboard Movement for P1 (QWERTY WASD / AZERTY ZQSD / QWERTZ / Dvorak)
             if (moveX === 0 && moveY === 0) {
-                if (this.keys['KeyW'] || this.keys['KeyZ'] || this.keys['w'] || this.keys['z']) moveY -= 1;
-                if (this.keys['KeyS'] || this.keys['s']) moveY += 1;
-                if (this.keys['KeyA'] || this.keys['KeyQ'] || this.keys['a'] || this.keys['q']) moveX -= 1;
-                if (this.keys['KeyD'] || this.keys['d']) moveX += 1;
+                const isUp = (this.keyCodes && (this.keyCodes['KeyW'] || this.keyCodes['KeyZ'])) || this.keys['w'] || this.keys['z'] || this.keys['arrowup'];
+                const isDown = (this.keyCodes && this.keyCodes['KeyS']) || this.keys['s'] || this.keys['arrowdown'];
+                const isLeft = (this.keyCodes && (this.keyCodes['KeyA'] || this.keyCodes['KeyQ'])) || this.keys['a'] || this.keys['q'] || this.keys['arrowleft'];
+                const isRight = (this.keyCodes && this.keyCodes['KeyD']) || this.keys['d'] || this.keys['arrowright'];
+
+                if (isUp) moveY -= 1;
+                if (isDown) moveY += 1;
+                if (isLeft) moveX -= 1;
+                if (isRight) moveX += 1;
 
                 if (moveX !== 0 && moveY !== 0) {
                     const norm = 1 / Math.sqrt(2);
