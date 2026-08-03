@@ -601,50 +601,89 @@ html, body {
     color: #4a5568;
 }
 
-/* Map Choice Container */
-.map-choice-container {
-    display: flex;
-    gap: 12px;
-    margin: 14px 0 10px 0;
-}
-
-.btn-map {
-    flex: 1;
+/* Map Choice Carousel */
+.map-carousel-wrapper {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    padding: 12px 14px;
-    font-family: var(--font-heading);
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    color: #8a99ad;
-    background: rgba(15, 23, 42, 0.7);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    gap: 10px;
+    width: 100%;
+    margin: 8px 0;
+}
+
+.map-nav-btn {
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(0, 240, 255, 0.4);
+    color: #00f0ff;
+    font-size: 16px;
+    width: 40px;
+    height: 64px;
     border-radius: 10px;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
-.btn-map:hover {
-    border-color: rgba(0, 240, 255, 0.5);
-    color: #fff;
+.map-nav-btn:hover {
+    background: rgba(0, 240, 255, 0.25);
+    border-color: #00f0ff;
+    transform: scale(1.06);
+    box-shadow: 0 0 15px rgba(0, 240, 255, 0.5);
 }
 
-.btn-map.active {
-    background: linear-gradient(135deg, rgba(0, 240, 255, 0.25), rgba(0, 255, 136, 0.15));
-    border: 2px solid #00f0ff;
-    color: #ffffff;
-    font-weight: 800;
-    box-shadow: 0 0 20px rgba(0, 240, 255, 0.5), inset 0 0 10px rgba(0, 240, 255, 0.2);
-    transform: scale(1.03);
+.map-nav-btn:active {
+    transform: scale(0.96);
 }
 
-.btn-map.active::after {
-    content: " ✓";
-    color: #00ff88;
+.map-card {
+    flex: 1;
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(10, 16, 28, 0.95));
+    border: 2px solid rgba(0, 240, 255, 0.4);
+    border-radius: 12px;
+    padding: 10px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    box-shadow: 0 0 20px rgba(0, 240, 255, 0.15), inset 0 0 12px rgba(0, 240, 255, 0.08);
+    transition: all 0.25s ease;
+    min-height: 64px;
+}
+
+.map-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.map-card-icon {
+    font-size: 20px;
+}
+
+.map-card-title {
+    font-family: var(--font-heading);
+    font-size: 14px;
     font-weight: 900;
+    color: #ffffff;
+    letter-spacing: 1.5px;
+    text-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+}
+
+.map-card-desc {
+    font-size: 11px;
+    color: #a0aec0;
+    font-weight: 600;
+}
+
+.map-card-size {
+    font-family: var(--font-heading);
+    font-size: 10px;
+    color: var(--gold-accent);
+    letter-spacing: 1px;
+    font-weight: 700;
 }
 
 /* Dual Controller Ready Badges */

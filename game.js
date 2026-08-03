@@ -515,76 +515,219 @@ class TacticalMap {
         this.height = 1400;
         this.segments = [];
         this.obstacles = [];
+        this.spawn1 = { x: 200, y: 200, angle: Math.PI * 0.25 };
+        this.spawn2 = { x: 1200, y: 1200, angle: Math.PI * 1.25 };
+        this.currentMapId = 'SQUARE';
 
         this.buildMap('SQUARE');
+    }
+
+    static get MAP_LIST() {
+        return [
+            { id: 'SQUARE', name: 'ARENA CLASSIQUE', desc: 'Map équilibrée avec pilier central et angles découverts', icon: '🏛️', width: 1400, height: 1400 },
+            { id: 'BUNKER', name: 'LE BUNKER', desc: 'Couloirs étroits et angles morts pour combat rapproché', icon: '🧱', width: 1200, height: 1200 },
+            { id: 'SNIPER', name: 'SNIPER ALLEY', desc: 'Grande map allongée favorisant la précision à longue distance', icon: '🎯', width: 2000, height: 1000 },
+            { id: 'MAZE', name: 'LE LABYRINTHE', desc: 'Nombreux détours et coins d\'ombre pour les embuscades', icon: '🌀', width: 1600, height: 1600 },
+            { id: 'PILLARS', name: 'CHAMP DE PILIERS', desc: 'Matrice de 9 piliers pour un duel hautement tactique', icon: '🔳', width: 1500, height: 1500 },
+            { id: 'CROSSING', name: 'LE CROISEMENT', desc: 'Deux zones reliées par un goulot d\'étranglement central', icon: '⚔️', width: 1800, height: 1400 },
+            { id: 'RANDOM', name: 'ALÉATOIRE', desc: 'Décor généré procéduralement à chaque manche', icon: '🎲', width: 1400, height: 1400 }
+        ];
     }
 
     buildMap(mapType = 'SQUARE') {
         this.segments = [];
         this.obstacles = [];
+        this.currentMapId = mapType;
 
-        // Outer Boundary Square Arena Walls
+        const info = TacticalMap.MAP_LIST.find(m => m.id === mapType) || TacticalMap.MAP_LIST[0];
+        this.width = info.width;
+        this.height = info.height;
+
+        // Outer Boundary Walls for this map's width & height
         this.addWall(0, 0, this.width, 0);
         this.addWall(this.width, 0, this.width, this.height);
         this.addWall(this.width, this.height, 0, this.height);
         this.addWall(0, this.height, 0, 0);
 
-        if (mapType === 'RANDOM') {
-            this.generateProceduralCover();
+        switch (mapType) {
+            case 'BUNKER':
+                this.buildBunkerMap();
+                break;
+            case 'SNIPER':
+                this.buildSniperMap();
+                break;
+            case 'MAZE':
+                this.buildMazeMap();
+                break;
+            case 'PILLARS':
+                this.buildPillarsMap();
+                break;
+            case 'CROSSING':
+                this.buildCrossingMap();
+                break;
+            case 'RANDOM':
+                this.spawn1 = { x: 200, y: 200, angle: Math.PI * 0.25 };
+                this.spawn2 = { x: 1200, y: 1200, angle: Math.PI * 1.25 };
+                this.generateProceduralCover();
+                break;
+            case 'SQUARE':
+            default:
+                this.buildSquareMap();
+                break;
         }
     }
 
-    generateProceduralCover() {
-        const cx = 700;
-        const cy = 700;
+    buildSquareMap() {
+        this.spawn1 = { x: 200, y: 200, angle: Math.PI * 0.25 };
+        this.spawn2 = { x: 1200, y: 1200, angle: Math.PI * 1.25 };
 
-        // Generate 1 to 2 additional decor elements (each element is symmetric for P1 and P2)
-        const count = 1 + Math.floor(Math.random() * 2); // 1 or 2 decor groups
+        // Central Pillar
+        this.addRectObstacle(630, 630, 140, 140);
+        // Symmetrical corner obstacles
+        this.addRectObstacle(350, 350, 80, 80);
+        this.addRectObstacle(970, 350, 80, 80);
+        this.addRectObstacle(350, 970, 80, 80);
+        this.addRectObstacle(970, 970, 80, 80);
+    }
+
+    buildBunkerMap() {
+        this.spawn1 = { x: 160, y: 160, angle: Math.PI * 0.25 };
+        this.spawn2 = { x: 1040, y: 1040, angle: Math.PI * 1.25 };
+
+        // H-shaped central bunker structure with doorways
+        this.addWall(400, 250, 400, 500);
+        this.addWall(400, 700, 400, 950);
+        this.addWall(800, 250, 800, 500);
+        this.addWall(800, 700, 800, 950);
+        this.addWall(400, 600, 520, 600);
+        this.addWall(680, 600, 800, 600);
+
+        // Corner rooms
+        this.addRectObstacle(180, 380, 110, 110);
+        this.addRectObstacle(910, 710, 110, 110);
+        this.addRectObstacle(710, 180, 110, 110);
+        this.addRectObstacle(380, 910, 110, 110);
+    }
+
+    buildSniperMap() {
+        this.spawn1 = { x: 160, y: 500, angle: 0 };
+        this.spawn2 = { x: 1840, y: 500, angle: Math.PI };
+
+        // Horizontal corridors
+        this.addWall(450, 300, 850, 300);
+        this.addWall(1150, 300, 1550, 300);
+        this.addWall(450, 700, 850, 700);
+        this.addWall(1150, 700, 1550, 700);
+
+        // Central alley block
+        this.addRectObstacle(940, 420, 120, 160);
+
+        // Alley half-covers
+        this.addRectObstacle(550, 460, 80, 80);
+        this.addRectObstacle(1370, 460, 80, 80);
+
+        // Flank rooms
+        this.addRectObstacle(700, 120, 140, 70);
+        this.addRectObstacle(1160, 810, 140, 70);
+    }
+
+    buildMazeMap() {
+        this.spawn1 = { x: 180, y: 180, angle: Math.PI * 0.25 };
+        this.spawn2 = { x: 1420, y: 1420, angle: Math.PI * 1.25 };
+
+        // Outer ring barriers
+        this.addWall(400, 200, 400, 650);
+        this.addWall(1200, 950, 1200, 1400);
+        this.addWall(200, 400, 650, 400);
+        this.addWall(950, 1200, 1400, 1200);
+
+        // L-shaped walls
+        this.addWall(600, 600, 950, 600);
+        this.addWall(600, 600, 600, 950);
+
+        this.addWall(650, 1000, 1000, 1000);
+        this.addWall(1000, 650, 1000, 1000);
+
+        // Central block
+        this.addRectObstacle(740, 740, 120, 120);
+    }
+
+    buildPillarsMap() {
+        this.spawn1 = { x: 200, y: 200, angle: Math.PI * 0.25 };
+        this.spawn2 = { x: 1300, y: 1300, angle: Math.PI * 1.25 };
+
+        // Center
+        this.addRectObstacle(690, 690, 120, 120);
+
+        // Cardinal 4
+        this.addRectObstacle(690, 390, 120, 120);
+        this.addRectObstacle(690, 990, 120, 120);
+        this.addRectObstacle(390, 690, 120, 120);
+        this.addRectObstacle(990, 690, 120, 120);
+
+        // Diagonal 4
+        this.addRectObstacle(390, 390, 100, 100);
+        this.addRectObstacle(990, 990, 100, 100);
+        this.addRectObstacle(990, 390, 100, 100);
+        this.addRectObstacle(390, 990, 100, 100);
+    }
+
+    buildCrossingMap() {
+        this.spawn1 = { x: 200, y: 700, angle: 0 };
+        this.spawn2 = { x: 1600, y: 700, angle: Math.PI };
+
+        // Funnel choke walls
+        this.addWall(750, 0, 750, 520);
+        this.addWall(750, 880, 750, 1400);
+
+        this.addWall(1050, 0, 1050, 520);
+        this.addWall(1050, 880, 1050, 1400);
+
+        // Center choke obstacle
+        this.addRectObstacle(840, 610, 120, 180);
+
+        // Base covers
+        this.addRectObstacle(400, 320, 80, 200);
+        this.addRectObstacle(400, 880, 80, 200);
+        this.addRectObstacle(1320, 320, 80, 200);
+        this.addRectObstacle(1320, 880, 80, 200);
+    }
+
+    generateProceduralCover() {
+        const cx = this.width / 2;
+        const cy = this.height / 2;
+        const count = 2 + Math.floor(Math.random() * 2);
 
         for (let k = 0; k < count; k++) {
             const mode = Math.floor(Math.random() * 4);
-
             if (mode === 0) {
-                // Central Square Obstacle / Pillar (Self-Symmetric)
                 const size = 70 + Math.floor(Math.random() * 50);
                 const offsetX = (Math.random() - 0.5) * 160;
                 const offsetY = (Math.random() - 0.5) * 160;
                 this.addRectObstacle(cx - size / 2 + offsetX, cy - size / 2 + offsetY, size, size);
-                // Also add its 180° symmetric counterpart if not perfectly centered
                 if (Math.abs(offsetX) > 10 || Math.abs(offsetY) > 10) {
                     this.addRectObstacle(cx - size / 2 - offsetX, cy - size / 2 - offsetY, size, size);
                 }
             } else if (mode === 1) {
-                // Symmetric Pair of Crates (1 for P1 side, 1 for P2 side)
                 const rx = 250 + Math.floor(Math.random() * 320);
                 const ry = 220 + Math.floor(Math.random() * 320);
                 const w = 70 + Math.floor(Math.random() * 50);
                 const h = 70 + Math.floor(Math.random() * 50);
-
-                // P1 side crate
                 this.addRectObstacle(rx, ry, w, h);
-                // P2 side 180° rotationally symmetric twin crate
                 this.addRectObstacle(this.width - rx - w, this.height - ry - h, w, h);
             } else if (mode === 2) {
-                // Symmetric Pair of L-Walls (Rotated 180° across center)
                 const rx = 300 + Math.floor(Math.random() * 260);
                 const ry = 250 + Math.floor(Math.random() * 280);
                 const len = 100 + Math.floor(Math.random() * 60);
-
-                // P1 L-Wall
                 this.addWall(rx, ry, rx + len, ry);
                 this.addWall(rx, ry, rx, ry + len);
-
-                // P2 Symmetric L-Wall
                 this.addWall(this.width - rx - len, this.height - ry, this.width - rx, this.height - ry);
                 this.addWall(this.width - rx, this.height - ry - len, this.width - rx, this.height - ry);
             } else {
-                // Symmetric Pair of Straight Barrier Walls (Rotated 180°)
                 const rx = 320 + Math.floor(Math.random() * 240);
                 const ry = 200 + Math.floor(Math.random() * 340);
                 const len = 110 + Math.floor(Math.random() * 70);
                 const isHorizontal = Math.random() > 0.5;
-
                 if (isHorizontal) {
                     this.addWall(rx, ry, rx + len, ry);
                     this.addWall(this.width - rx - len, this.height - ry, this.width - rx, this.height - ry);
@@ -1299,7 +1442,8 @@ class CandelaGame {
         this.currentRound = 1;
         this.gameState = 'START'; // START, PLAYING, VICTORY
 
-        this.selectedMapType = 'SQUARE'; // Default map: open square room!
+        this.selectedMapIndex = 0;
+        this.selectedMapType = TacticalMap.MAP_LIST[0].id; // Default map: Arena Classique
         this.p1Ready = false;
         this.p2Ready = false;
         this.p1HoldTimer = 0;
@@ -1326,8 +1470,8 @@ class CandelaGame {
         this.fogCanvas = null;
         this.fogCtx = null;
         this.cam = [
-            { x: 200, y: 200 },
-            { x: 1200, y: 1200 }
+            { x: this.map.spawn1.x, y: this.map.spawn1.y },
+            { x: this.map.spawn2.x, y: this.map.spawn2.y }
         ];
         this.camLerpSpeed = 8.0;
         this.bulletDecals = [];
@@ -1361,25 +1505,22 @@ class CandelaGame {
             });
         }
 
-        // Map choice button handlers
-        const btnKeep = document.getElementById('btn-keep-map');
-        const btnNew = document.getElementById('btn-new-map');
+        // Map choice carousel button handlers (Start screen & Victory screen)
+        const sPrev = document.getElementById('start-map-prev');
+        const sNext = document.getElementById('start-map-next');
+        const vPrev = document.getElementById('btn-map-prev');
+        const vNext = document.getElementById('btn-map-next');
 
-        if (btnKeep && btnNew) {
-            btnKeep.addEventListener('click', () => {
-                this.selectedMapType = 'SQUARE';
-                btnKeep.classList.add('active');
-                btnNew.classList.remove('active');
-                this.audioEngine.playTorchClick(true);
-            });
+        if (sPrev) sPrev.addEventListener('click', () => this.changeMapIndex(-1));
+        if (sNext) sNext.addEventListener('click', () => this.changeMapIndex(1));
+        if (vPrev) vPrev.addEventListener('click', () => this.changeMapIndex(-1));
+        if (vNext) vNext.addEventListener('click', () => this.changeMapIndex(1));
 
-            btnNew.addEventListener('click', () => {
-                this.selectedMapType = 'RANDOM';
-                btnNew.classList.add('active');
-                btnKeep.classList.remove('active');
-                this.audioEngine.playTorchClick(true);
-            });
-        }
+        // Click on map card itself to cycle forward
+        const sCard = document.getElementById('start-map-card');
+        const vCard = document.getElementById('victory-map-card');
+        if (sCard) sCard.addEventListener('click', () => this.changeMapIndex(1));
+        if (vCard) vCard.addEventListener('click', () => this.changeMapIndex(1));
 
         const btnNext = document.getElementById('btn-next-round');
         if (btnNext) {
@@ -1387,11 +1528,44 @@ class CandelaGame {
                 this.startNextRound();
             });
         }
+
+        this.updateMapCarouselUI();
+    }
+
+    changeMapIndex(delta) {
+        const list = TacticalMap.MAP_LIST;
+        this.selectedMapIndex = (this.selectedMapIndex + delta + list.length) % list.length;
+        this.selectedMapType = list[this.selectedMapIndex].id;
+        this.audioEngine.playTorchClick(true);
+        this.updateMapCarouselUI();
+    }
+
+    updateMapCarouselUI() {
+        const mapInfo = TacticalMap.MAP_LIST[this.selectedMapIndex];
+        if (!mapInfo) return;
+
+        const targets = [
+            ['start-map-icon', 'start-map-title', 'start-map-desc', 'start-map-size'],
+            ['victory-map-icon', 'victory-map-title', 'victory-map-desc', 'victory-map-size']
+        ];
+
+        for (const [iconId, titleId, descId, sizeId] of targets) {
+            const iconEl = document.getElementById(iconId);
+            const titleEl = document.getElementById(titleId);
+            const descEl = document.getElementById(descId);
+            const sizeEl = document.getElementById(sizeId);
+
+            if (iconEl) iconEl.textContent = mapInfo.icon;
+            if (titleEl) titleEl.textContent = mapInfo.name;
+            if (descEl) descEl.textContent = mapInfo.desc;
+            if (sizeEl) sizeEl.textContent = `${mapInfo.width} × ${mapInfo.height} px`;
+        }
     }
 
     startGameFromStartMenu() {
         this.audioEngine.init();
         document.getElementById('start-overlay').classList.add('hidden');
+        this.map.buildMap(this.selectedMapType);
         this.gameState = 'PLAYING';
         this.resetRound();
     }
@@ -1410,15 +1584,16 @@ class CandelaGame {
     }
 
     resetRound() {
-        this.players[0].resetPosition(200, 200, Math.PI * 0.25);
-        this.players[1].resetPosition(1200, 1200, Math.PI * 1.25);
+        this.players[0].resetPosition(this.map.spawn1.x, this.map.spawn1.y, this.map.spawn1.angle);
+        this.players[1].resetPosition(this.map.spawn2.x, this.map.spawn2.y, this.map.spawn2.angle);
         this.bullets = [];
         this.roundTimer = 120;
         this.bulletDecals = [];
         this.roundFadeIn = 1.0;
         this.slowMotionTimer = 0;
-        this.cam[0] = { x: 200, y: 200 };
-        this.cam[1] = { x: 1200, y: 1200 };
+        this.cam[0] = { x: this.map.spawn1.x, y: this.map.spawn1.y };
+        this.cam[1] = { x: this.map.spawn2.x, y: this.map.spawn2.y };
+        this.ambientParticles = new AmbientParticleSystem(this.map.width, this.map.height);
 
         this.replaySystem.reset();
         this.replayTimer = 0;
@@ -1581,34 +1756,18 @@ class CandelaGame {
     }
 
     updateMenuCursors(dt) {
-        if (this.gameState !== 'VICTORY') return;
+        if (this.gameState !== 'VICTORY' && this.gameState !== 'START') return;
 
         const inP1 = this.inputManager.getPlayerInput(0, this.players[0], null);
         const inP2 = this.inputManager.getPlayerInput(1, this.players[1], null);
 
-        const btnKeep = document.getElementById('btn-keep-map');
-        const btnNew = document.getElementById('btn-new-map');
-        if (!btnKeep || !btnNew) return;
-
-        // Either player moving left or right toggles between map choices
         const moveX = inP1.moveX || inP2.moveX;
         if (!this.navCooldown) this.navCooldown = 0;
         if (this.navCooldown > 0) this.navCooldown -= dt;
 
-        if (this.navCooldown <= 0) {
-            if (moveX < -0.4 && this.selectedMapType !== 'SQUARE') {
-                this.selectedMapType = 'SQUARE';
-                btnKeep.classList.add('active');
-                btnNew.classList.remove('active');
-                this.audioEngine.playTorchClick(true);
-                this.navCooldown = 0.25;
-            } else if (moveX > 0.4 && this.selectedMapType !== 'RANDOM') {
-                this.selectedMapType = 'RANDOM';
-                btnNew.classList.add('active');
-                btnKeep.classList.remove('active');
-                this.audioEngine.playTorchClick(true);
-                this.navCooldown = 0.25;
-            }
+        if (this.navCooldown <= 0 && Math.abs(moveX) > 0.45) {
+            this.changeMapIndex(moveX > 0 ? 1 : -1);
+            this.navCooldown = 0.28;
         }
     }
 

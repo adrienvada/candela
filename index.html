@@ -169,9 +169,23 @@
                         </g>
                     </svg>
                 </div>
+                <!-- Map Choice Carousel (Start Screen) -->
+                <div class="map-carousel-wrapper">
+                    <button id="start-map-prev" class="map-nav-btn" title="Carte précédente">◀</button>
+                    <div id="start-map-card" class="map-card">
+                        <div class="map-card-header">
+                            <span id="start-map-icon" class="map-card-icon">🏛️</span>
+                            <span id="start-map-title" class="map-card-title">ARENA CLASSIQUE</span>
+                        </div>
+                        <div id="start-map-desc" class="map-card-desc">Map équilibrée avec pilier central et angles découverts</div>
+                        <div id="start-map-size" class="map-card-size">1400 × 1400 px</div>
+                    </div>
+                    <button id="start-map-next" class="map-nav-btn" title="Carte suivante">▶</button>
+                </div>
+
                 <!-- Dual Controller Ready Badges & Gamepad Status for Start Menu -->
                 <div class="ready-status-box"
-                    style="margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; width: 100%;">
+                    style="margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; width: 100%;">
                     <div class="player-start-col" style="display: flex; flex-direction: column; gap: 8px;">
                         <div id="start-p1-ready-badge" class="ready-badge waiting">
                             <div id="start-p1-ready-bar" class="ready-progress-bar" style="width: 0%;"></div>
@@ -307,14 +321,18 @@
                     </div>
                 </div>
 
-                <!-- Map Choice Buttons -->
-                <div class="map-choice-container">
-                    <button id="btn-keep-map" class="btn-map active">
-                        <span class="map-icon">📌</span> GARDER LA MÊME MAP
-                    </button>
-                    <button id="btn-new-map" class="btn-map">
-                        <span class="map-icon">🎲</span> CHANGER DE MAP (ALÉATOIRE)
-                    </button>
+                <!-- Map Choice Carousel (Victory Screen) -->
+                <div class="map-carousel-wrapper">
+                    <button id="btn-map-prev" class="map-nav-btn" title="Carte précédente">◀</button>
+                    <div id="victory-map-card" class="map-card">
+                        <div class="map-card-header">
+                            <span id="victory-map-icon" class="map-card-icon">🏛️</span>
+                            <span id="victory-map-title" class="map-card-title">ARENA CLASSIQUE</span>
+                        </div>
+                        <div id="victory-map-desc" class="map-card-desc">Map équilibrée avec pilier central et angles découverts</div>
+                        <div id="victory-map-size" class="map-card-size">1400 × 1400 px</div>
+                    </div>
+                    <button id="btn-map-next" class="map-nav-btn" title="Carte suivante">▶</button>
                 </div>
 
                 <!-- Dual Controller Ready Status Badges -->
