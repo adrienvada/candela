@@ -802,6 +802,169 @@ html, body {
     gap: 10px;
 }
 
+.weapon-card-img-wrap {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.6);
+    flex-shrink: 0;
+}
+
+.weapon-card-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.25s ease;
+}
+
+.weapon-slot-card:hover .weapon-card-img {
+    transform: scale(1.12);
+}
+
+/* Match Format Selector (Axe 3) */
+.match-format-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 4px;
+}
+
+.format-label {
+    font-family: var(--font-heading);
+    font-size: 9px;
+    font-weight: 800;
+    color: #94a3b8;
+    letter-spacing: 1px;
+}
+
+.format-btn-group {
+    display: flex;
+    background: rgba(6, 10, 20, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    padding: 2px;
+    gap: 2px;
+}
+
+.format-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-family: var(--font-heading);
+    font-size: 10px;
+    font-weight: 800;
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.format-btn:hover {
+    color: #ffffff;
+}
+
+.format-btn.active {
+    background: linear-gradient(135deg, #00f0ff, #0088ff);
+    color: #060a12;
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+}
+
+/* Round Dots in Center HUD (Axe 3) */
+.match-score-dots-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.round-dots {
+    font-size: 13px;
+    letter-spacing: 3px;
+    font-family: monospace;
+}
+
+.p1-dots {
+    color: #00f0ff;
+    text-shadow: 0 0 8px rgba(0, 240, 255, 0.8);
+}
+
+.p2-dots {
+    color: #ff0055;
+    text-shadow: 0 0 8px rgba(255, 0, 85, 0.8);
+}
+
+.dots-vs {
+    font-size: 10px;
+    color: #64748b;
+}
+
+.overtime-badge {
+    background: linear-gradient(90deg, #ff9f1a, #ff3838);
+    color: #ffffff;
+    font-family: var(--font-heading);
+    font-size: 10px;
+    font-weight: 900;
+    padding: 2px 8px;
+    border-radius: 4px;
+    letter-spacing: 1.5px;
+    animation: pulseOvertime 0.8s infinite alternate;
+}
+
+@keyframes pulseOvertime {
+    from { transform: scale(1); box-shadow: 0 0 6px rgba(255, 159, 26, 0.6); }
+    to { transform: scale(1.08); box-shadow: 0 0 14px rgba(255, 56, 56, 0.9); }
+}
+
+/* Match Statistics Breakdown (Axe 3) */
+.match-stats-box {
+    display: grid;
+    grid-template-columns: 1fr 40px 1fr;
+    gap: 10px;
+    background: rgba(6, 10, 20, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    padding: 10px;
+    width: 100%;
+    margin: 8px 0;
+    align-items: center;
+}
+
+.stats-col {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.p1-stats-col { text-align: left; }
+.p2-stats-col { text-align: right; }
+
+.stat-line {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--font-heading);
+    font-size: 10px;
+    font-weight: 700;
+    color: #cbd5e1;
+}
+
+.p1-stats-col .stat-line span:last-child { color: #00f0ff; }
+.p2-stats-col .stat-line span:last-child { color: #ff0055; }
+
+.stats-vs-divider {
+    font-family: var(--font-heading);
+    font-size: 9px;
+    font-weight: 900;
+    color: #64748b;
+    text-align: center;
+}
+
 .weapon-card-icon {
     font-size: 26px;
     filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.3));

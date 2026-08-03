@@ -1537,6 +1537,20 @@ class CandelaGame {
             ['PISTOL', 'SHOTGUN'],
             ['PISTOL', 'SNIPER']
         ];
+        
+        // Axe 3: Match Format & Stats
+        this.matchMode = 'BO3';
+        this.targetWins = 2;
+        this.p1RoundsWon = 0;
+        this.p2RoundsWon = 0;
+        this.isOvertime = false;
+        this.overtimeRingRadius = 2000;
+
+        this.matchStats = [
+            { shotsFired: 0, shotsHit: 0, damageDealt: 0, dashes: 0 },
+            { shotsFired: 0, shotsHit: 0, damageDealt: 0, dashes: 0 }
+        ];
+
         this.p1Ready = false;
         this.p2Ready = false;
         this.p1HoldTimer = 0;
@@ -1623,6 +1637,15 @@ class CandelaGame {
             }
         });
 
+        const formatBtns = document.querySelectorAll('.format-btn');
+        formatBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                formatBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.setMatchFormat(btn.dataset.format);
+            });
+        });
+
         const btnNext = document.getElementById('btn-next-round');
         if (btnNext) {
             btnNext.addEventListener('click', () => {
@@ -1631,10 +1654,34 @@ class CandelaGame {
         }
 
         this.updateMapCarouselUI();
+        this.updateRoundDotsUI();
         this.updateWeaponCardUI(0, 0);
         this.updateWeaponCardUI(0, 1);
         this.updateWeaponCardUI(1, 0);
         this.updateWeaponCardUI(1, 1);
+    }
+
+    setMatchFormat(fmt) {
+        this.matchMode = fmt;
+        this.targetWins = fmt === 'BO5' ? 3 : (fmt === 'BO3' ? 2 : 1);
+        this.audioEngine.playTorchClick(true);
+        this.updateRoundDotsUI();
+    }
+
+    updateRoundDotsUI() {
+        const p1Dots = document.getElementById('p1-round-dots');
+        const p2Dots = document.getElementById('p2-round-dots');
+
+        let p1Str = '';
+        let p2Str = '';
+
+        for (let i = 0; i < this.targetWins; i++) {
+            p1Str += (i < this.p1RoundsWon) ? '● ' : '○ ';
+            p2Str += (i < this.p2RoundsWon) ? '● ' : '○ ';
+        }
+
+        if (p1Dots) p1Dots.textContent = p1Str.trim();
+        if (p2Dots) p2Dots.textContent = p2Str.trim();
     }
 
     cycleWeaponChoice(playerIndex, slotIndex) {
@@ -1663,12 +1710,18 @@ class CandelaGame {
             SNIPER: 'Tir lourd • Longue portée'
         };
 
+        const imgMap = {
+            PISTOL: 'assets/weapons/pistol.jpg',
+            SHOTGUN: 'assets/weapons/shotgun.jpg',
+            SNIPER: 'assets/weapons/sniper.jpg'
+        };
+
         const damageBarMap = { PISTOL: 45, SHOTGUN: 100, SNIPER: 95 };
         const rangeBarMap = { PISTOL: 100, SHOTGUN: 25, SNIPER: 100 };
         const rangeTextMap = { PISTOL: 'MAX', SHOTGUN: '550', SNIPER: '4500' };
         const rateBarMap = { PISTOL: 80, SHOTGUN: 45, SNIPER: 20 };
 
-        const iconEl = document.getElementById(`${prefix}-icon`);
+        const imgEl = document.getElementById(`${prefix}-img`);
         const nameEl = document.getElementById(`${prefix}-name`);
         const descEl = document.getElementById(`${prefix}-desc`);
         const dmgBar = document.getElementById(`${prefix}-damage-bar`);
@@ -1678,7 +1731,7 @@ class CandelaGame {
         const rateBar = document.getElementById(`${prefix}-rate-bar`);
         const rateVal = document.getElementById(`${prefix}-rate-val`);
 
-        if (iconEl) iconEl.textContent = spec.icon;
+        if (imgEl) imgEl.src = imgMap[weaponId];
         if (nameEl) nameEl.textContent = spec.name;
         if (descEl) descEl.textContent = descMap[weaponId] || '';
         if (dmgBar) dmgBar.style.width = `${damageBarMap[weaponId]}%`;
@@ -1735,6 +1788,14 @@ class CandelaGame {
         const overlay = document.getElementById('start-overlay');
         if (overlay) overlay.classList.add('hidden');
         this.applySelectedLoadout();
+        this.p1RoundsWon = 0;
+        this.p2RoundsWon = 0;
+        this.currentRound = 1;
+        this.matchStats = [
+            { shotsFired: 0, shotsHit: 0, damageDealt: 0, dashes: 0 },
+            { shotsFired: 0, shotsHit: 0, damageDealt: 0, dashes: 0 }
+        ];
+        this.updateRoundDotsUI();
         this.map.buildMap(this.selectedMapType);
         this.gameState = 'PLAYING';
         this.resetRound();
@@ -1759,6 +1820,10 @@ class CandelaGame {
         this.players[1].resetPosition(this.map.spawn2.x, this.map.spawn2.y, this.map.spawn2.angle);
         this.bullets = [];
         this.roundTimer = 120;
+        this.isOvertime = false;
+        const otBadge = document.getElementById('overtime-badge');
+        if (otBadge) otBadge.classList.add('hidden');
+
         this.bulletDecals = [];
         this.roundFadeIn = 1.0;
         this.slowMotionTimer = 0;
@@ -1778,6 +1843,58 @@ class CandelaGame {
         const elP2Cursor = document.getElementById('cursor-p2');
         if (elP1Cursor) elP1Cursor.classList.add('hidden');
         if (elP2Cursor) elP2Cursor.classList.add('hidden');
+    }
+
+    triggerVictoryScreen(winner, isGrandMatchWin = false, reason = "ÉLIMINATION") {
+        this.gameState = 'VICTORY';
+        this.postMortemTimer = 1.0;
+
+        const titleEl = document.getElementById('victory-title');
+        const descEl = document.getElementById('victory-desc');
+        const bannerEl = document.getElementById('victory-banner');
+        const mP1Score = document.getElementById('modal-p1-score');
+        const mP2Score = document.getElementById('modal-p2-score');
+
+        if (mP1Score) mP1Score.textContent = this.p1RoundsWon;
+        if (mP2Score) mP2Score.textContent = this.p2RoundsWon;
+
+        if (winner) {
+            if (isGrandMatchWin) {
+                if (bannerEl) bannerEl.textContent = "🏆 GRAND CHAMPION !";
+                if (titleEl) titleEl.textContent = `${winner.name.toUpperCase()} GAGNE LE MATCH !`;
+                if (descEl) descEl.textContent = `Victoire finale dans le format ${this.matchMode} ! (${this.p1RoundsWon} - ${this.p2RoundsWon})`;
+            } else {
+                if (bannerEl) bannerEl.textContent = "MANCHE GAGNÉE !";
+                if (titleEl) titleEl.textContent = `${winner.name.toUpperCase()} REMPORTE LA MANCHE`;
+                if (descEl) descEl.textContent = `${reason} dans l'obscurité.`;
+            }
+        } else {
+            if (bannerEl) bannerEl.textContent = "ÉGALITÉ !";
+            if (titleEl) titleEl.textContent = "ÉGALITÉ PARFAITE";
+            if (descEl) descEl.textContent = "Les deux joueurs sont à égalité.";
+        }
+
+        // Update Match Stats Breakdown
+        const p1Stats = this.matchStats[0];
+        const p2Stats = this.matchStats[1];
+
+        const p1Acc = Math.round((p1Stats.shotsHit / Math.max(1, p1Stats.shotsFired)) * 100);
+        const p2Acc = Math.round((p2Stats.shotsHit / Math.max(1, p2Stats.shotsFired)) * 100);
+
+        const elP1Acc = document.getElementById('p1-stat-acc');
+        const elP1Dmg = document.getElementById('p1-stat-dmg');
+        const elP1Dash = document.getElementById('p1-stat-dash');
+        const elP2Acc = document.getElementById('p2-stat-acc');
+        const elP2Dmg = document.getElementById('p2-stat-dmg');
+        const elP2Dash = document.getElementById('p2-stat-dash');
+
+        if (elP1Acc) elP1Acc.textContent = `${p1Acc}%`;
+        if (elP1Dmg) elP1Dmg.textContent = `${p1Stats.damageDealt} HP`;
+        if (elP1Dash) elP1Dash.textContent = p1Stats.dashes;
+
+        if (elP2Acc) elP2Acc.textContent = `${p2Acc}%`;
+        if (elP2Dmg) elP2Dmg.textContent = `${p2Stats.damageDealt} HP`;
+        if (elP2Dash) elP2Dash.textContent = p2Stats.dashes;
     }
 
     shootGun(player) {
@@ -1858,6 +1975,10 @@ class CandelaGame {
                 finalImpactX = oppImpactPoint.x;
                 finalImpactY = oppImpactPoint.y;
 
+                // Record Hit & Damage (Axe 3)
+                this.matchStats[player.id].shotsHit++;
+                this.matchStats[player.id].damageDealt += oppHitDamage;
+
                 hitOpponent.hp -= oppHitDamage;
                 hitOpponent.screenShake = weapon.shake;
                 hitOpponent.punchZoom = 1.0;
@@ -1878,6 +1999,15 @@ class CandelaGame {
                     player.score += 500;
                     this.particleSystem.addFloatingText(oppImpactPoint.x, oppImpactPoint.y - 35, '+500 ÉLIMINATION !', '#00ff88');
                     this.addKillFeedEntry(`${player.name} ✦ ÉLIMINATION !`, '#00ff88');
+
+                    // Round Win increment (Axe 3)
+                    if (player.id === 0) this.p1RoundsWon++;
+                    else this.p2RoundsWon++;
+
+                    this.updateRoundDotsUI();
+
+                    const isGrandMatchWin = (player.id === 0 ? this.p1RoundsWon : this.p2RoundsWon) >= this.targetWins;
+                    this.triggerVictoryScreen(player, isGrandMatchWin, "ÉLIMINATION MORTELLE");
                 }
 
                 for (let k = 0; k < 8; k++) {

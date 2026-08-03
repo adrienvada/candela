@@ -182,7 +182,7 @@
                         <div class="weapon-slot-card p1-border" id="p1-slot-1-card" data-player="0" data-slot="0">
                             <div class="slot-badge">ARME PRINCIPALE</div>
                             <div class="weapon-card-body">
-                                <div class="weapon-card-icon" id="p1-w1-icon">🔫</div>
+                                <div class="weapon-card-img-wrap"><img class="weapon-card-img" id="p1-w1-img" src="assets/weapons/pistol.jpg" alt="Arme"></div>
                                 <div class="weapon-card-info">
                                     <div class="weapon-card-name" id="p1-w1-name">PISTOLET TACTIQUE</div>
                                     <div class="weapon-card-desc" id="p1-w1-desc">Polyvalent • Portée illimitée</div>
@@ -199,7 +199,7 @@
                         <div class="weapon-slot-card p1-border" id="p1-slot-2-card" data-player="0" data-slot="1">
                             <div class="slot-badge">ARME SECONDAIRE</div>
                             <div class="weapon-card-body">
-                                <div class="weapon-card-icon" id="p1-w2-icon">💥</div>
+                                <div class="weapon-card-img-wrap"><img class="weapon-card-img" id="p1-w2-img" src="assets/weapons/shotgun.jpg" alt="Arme"></div>
                                 <div class="weapon-card-info">
                                     <div class="weapon-card-name" id="p1-w2-name">FUSIL À POMPE</div>
                                     <div class="weapon-card-desc" id="p1-w2-desc">5 Plombs • Combat rapproché</div>
@@ -216,6 +216,17 @@
                     <!-- CENTER MAP & VS BANNER -->
                     <div class="center-vs-panel">
                         <div class="vs-badge">VS</div>
+
+                        <!-- Format de Match Selector (Axe 3) -->
+                        <div class="match-format-box">
+                            <span class="format-label">FORMAT DE MATCH</span>
+                            <div class="format-btn-group">
+                                <button class="format-btn" data-format="BO1">Bo1</button>
+                                <button class="format-btn active" data-format="BO3">Bo3</button>
+                                <button class="format-btn" data-format="BO5">Bo5</button>
+                            </div>
+                        </div>
+
                         <div class="map-carousel-wrapper">
                             <button id="start-map-prev" class="map-nav-btn" title="Carte précédente">◀</button>
                             <div id="start-map-card" class="map-card">
@@ -241,7 +252,7 @@
                         <div class="weapon-slot-card p2-border" id="p2-slot-1-card" data-player="1" data-slot="0">
                             <div class="slot-badge">ARME PRINCIPALE</div>
                             <div class="weapon-card-body">
-                                <div class="weapon-card-icon" id="p2-w1-icon">🔫</div>
+                                <div class="weapon-card-img-wrap"><img class="weapon-card-img" id="p2-w1-img" src="assets/weapons/pistol.jpg" alt="Arme"></div>
                                 <div class="weapon-card-info">
                                     <div class="weapon-card-name" id="p2-w1-name">PISTOLET TACTIQUE</div>
                                     <div class="weapon-card-desc" id="p2-w1-desc">Polyvalent • Portée illimitée</div>
@@ -258,7 +269,7 @@
                         <div class="weapon-slot-card p2-border" id="p2-slot-2-card" data-player="1" data-slot="1">
                             <div class="slot-badge">ARME SECONDAIRE</div>
                             <div class="weapon-card-body">
-                                <div class="weapon-card-icon" id="p2-w2-icon">🎯</div>
+                                <div class="weapon-card-img-wrap"><img class="weapon-card-img" id="p2-w2-img" src="assets/weapons/sniper.jpg" alt="Arme"></div>
                                 <div class="weapon-card-info">
                                     <div class="weapon-card-name" id="p2-w2-name">SNIPER DE PRÉCISION</div>
                                     <div class="weapon-card-desc" id="p2-w2-desc">Tir lourd • Longue portée</div>
@@ -340,7 +351,13 @@
             <div id="center-hud">
                 <div class="brand-badge">CANDELA 2D</div>
                 <div id="round-timer" class="timer-display">02:00</div>
+                <div id="overtime-badge" class="overtime-badge hidden">⚠️ OVERTIME</div>
                 <div id="round-counter" class="round-display">ROUND 1</div>
+                <div class="match-score-dots-wrapper">
+                    <div id="p1-round-dots" class="round-dots p1-dots">● ● ○</div>
+                    <span class="dots-vs">-</span>
+                    <div id="p2-round-dots" class="round-dots p2-dots">○ ○ ○</div>
+                </div>
             </div>
 
             <!-- Kill Feed -->
@@ -408,6 +425,21 @@
                     <div class="score-box p2-score-box">
                         <span class="sb-label">P2 (ROUGE)</span>
                         <span id="modal-p2-score" class="sb-val">0</span>
+                    </div>
+                </div>
+
+                <!-- Match Statistics Breakdown (Axe 3) -->
+                <div id="match-stats-box" class="match-stats-box">
+                    <div class="stats-col p1-stats-col">
+                        <div class="stat-line"><span>PRÉCISION</span><span id="p1-stat-acc">0%</span></div>
+                        <div class="stat-line"><span>DÉGÂTS TOTAL</span><span id="p1-stat-dmg">0 HP</span></div>
+                        <div class="stat-line"><span>ESQUIVES (DASH)</span><span id="p1-stat-dash">0</span></div>
+                    </div>
+                    <div class="stats-vs-divider">STATS</div>
+                    <div class="stats-col p2-stats-col">
+                        <div class="stat-line"><span>PRÉCISION</span><span id="p2-stat-acc">0%</span></div>
+                        <div class="stat-line"><span>DÉGÂTS TOTAL</span><span id="p2-stat-dmg">0 HP</span></div>
+                        <div class="stat-line"><span>ESQUIVES (DASH)</span><span id="p2-stat-dash">0</span></div>
                     </div>
                 </div>
 
