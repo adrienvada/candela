@@ -387,9 +387,10 @@ class InputManager {
             light = ltVal > 0.25 || lbPressed;
             shoot = rtVal > 0.25 || rbPressed;
 
-            // Weapon Switch: Y / Triangle (Button 3) or LB (Button 4)
+            // Weapon Switch: D-Pad (12, 13, 14, 15) or Y / Triangle (Button 3)
+            const dpadPressed = [12, 13, 14, 15].some(idx => gp.buttons[idx] && (gp.buttons[idx].pressed || getVal(idx) > 0.5));
             const yBtn = gp.buttons[3] && (gp.buttons[3].pressed || getVal(3) > 0.5);
-            if (yBtn) switchWeapon = true;
+            if (yBtn || dpadPressed) switchWeapon = true;
 
             // Dash: B / Circle (Button 1) or L3 (10) or R3 (11)
             const bBtn = gp.buttons[1] && (gp.buttons[1].pressed || getVal(1) > 0.5);
@@ -539,7 +540,7 @@ class TacticalMap {
 
     static get MAP_LIST() {
         return [
-            { id: 'SQUARE', name: 'ARENA CLASSIQUE', desc: 'Map équilibrée avec pilier central et angles découverts', icon: '🏛️', width: 1400, height: 1400 },
+            { id: 'SQUARE', name: 'ARENA CLASSIQUE', desc: 'Arène ouverte totalement vide sauf les murs extérieurs', icon: '🏛️', width: 1400, height: 1400 },
             { id: 'BUNKER', name: 'LE BUNKER', desc: 'Couloirs étroits et angles morts pour combat rapproché', icon: '🧱', width: 1200, height: 1200 },
             { id: 'SNIPER', name: 'SNIPER ALLEY', desc: 'Grande map allongée favorisant la précision à longue distance', icon: '🎯', width: 2000, height: 1000 },
             { id: 'MAZE', name: 'LE LABYRINTHE', desc: 'Nombreux détours et coins d\'ombre pour les embuscades', icon: '🌀', width: 1600, height: 1600 },
@@ -595,14 +596,7 @@ class TacticalMap {
     buildSquareMap() {
         this.spawn1 = { x: 200, y: 200, angle: Math.PI * 0.25 };
         this.spawn2 = { x: 1200, y: 1200, angle: Math.PI * 1.25 };
-
-        // Central Pillar
-        this.addRectObstacle(630, 630, 140, 140);
-        // Symmetrical corner obstacles
-        this.addRectObstacle(350, 350, 80, 80);
-        this.addRectObstacle(970, 350, 80, 80);
-        this.addRectObstacle(350, 970, 80, 80);
-        this.addRectObstacle(970, 970, 80, 80);
+        // Arena Classique: Completely empty inside, pure open tactical duel!
     }
 
     buildBunkerMap() {
@@ -1686,13 +1680,21 @@ class CandelaGame {
 
     cycleWeaponChoice(playerIndex, slotIndex) {
         const order = ['PISTOL', 'SHOTGUN', 'SNIPER'];
+        const otherSlot = slotIndex === 0 ? 1 : 0;
         const current = this.loadouts[playerIndex][slotIndex];
-        const nextIdx = (order.indexOf(current) + 1) % order.length;
-        const nextW = order[nextIdx];
+        let nextIdx = (order.indexOf(current) + 1) % order.length;
+        let nextW = order[nextIdx];
+
+        // Skip weapon if it is already selected in the other slot
+        if (nextW === this.loadouts[playerIndex][otherSlot]) {
+            nextIdx = (nextIdx + 1) % order.length;
+            nextW = order[nextIdx];
+        }
 
         this.loadouts[playerIndex][slotIndex] = nextW;
         this.audioEngine.playTorchClick(true);
-        this.updateWeaponCardUI(playerIndex, slotIndex);
+        this.updateWeaponCardUI(playerIndex, 0);
+        this.updateWeaponCardUI(playerIndex, 1);
     }
 
     updateWeaponCardUI(playerIndex, slotIndex) {
