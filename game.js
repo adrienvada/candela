@@ -1749,12 +1749,23 @@ class CandelaGame {
 
         const formatBtns = document.querySelectorAll('.format-btn');
         formatBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', (e) => {
                 formatBtns.forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 this.setMatchFormat(btn.dataset.format);
+                this.audioEngine.playTorchClick(true);
             });
         });
+
+        // Ready action buttons handlers
+        const btnP1Ready = document.getElementById('btn-p1-ready');
+        const btnP2Ready = document.getElementById('btn-p2-ready');
+        if (btnP1Ready) {
+            btnP1Ready.addEventListener('click', () => this.togglePlayerReady(0));
+        }
+        if (btnP2Ready) {
+            btnP2Ready.addEventListener('click', () => this.togglePlayerReady(1));
+        }
 
         const btnNext = document.getElementById('btn-next-round');
         if (btnNext) {
@@ -1887,6 +1898,18 @@ class CandelaGame {
             if (titleEl) titleEl.textContent = mapInfo.name;
             if (descEl) descEl.textContent = mapInfo.desc;
             if (sizeEl) sizeEl.textContent = `${mapInfo.width} × ${mapInfo.height} px`;
+        }
+
+        // Render Map Preview SVG
+        const previewWrap = document.getElementById('start-map-preview-wrap');
+        if (previewWrap) {
+            if (mapInfo.id === 'SQUARE') {
+                previewWrap.innerHTML = `<svg class="map-preview-svg" viewBox="0 0 100 100"><rect x="10" y="10" width="80" height="80" fill="none" stroke="#00f0ff" stroke-width="3" rx="6"/><circle cx="50" cy="50" r="4" fill="#00f0ff" opacity="0.4"/></svg>`;
+            } else if (mapInfo.id === 'MAZE') {
+                previewWrap.innerHTML = `<svg class="map-preview-svg" viewBox="0 0 100 100"><rect x="10" y="10" width="80" height="80" fill="none" stroke="#00f0ff" stroke-width="3" rx="6"/><line x1="30" y1="10" x2="30" y2="55" stroke="#00f0ff" stroke-width="3"/><line x1="70" y1="45" x2="70" y2="90" stroke="#00f0ff" stroke-width="3"/><line x1="45" y1="70" x2="90" y2="70" stroke="#00f0ff" stroke-width="3"/></svg>`;
+            } else {
+                previewWrap.innerHTML = `<svg class="map-preview-svg" viewBox="0 0 100 100"><rect x="10" y="10" width="80" height="80" fill="none" stroke="#00f0ff" stroke-width="3" rx="6"/><rect x="40" y="40" width="20" height="20" fill="#00f0ff" opacity="0.6"/><rect x="25" y="25" width="10" height="10" fill="#00f0ff" opacity="0.4"/><rect x="65" y="65" width="10" height="10" fill="#00f0ff" opacity="0.4"/></svg>`;
+            }
         }
     }
 
@@ -2285,62 +2308,44 @@ class CandelaGame {
         this.handleProximityNavigation(1, inP2, dt);
     }
 
+    togglePlayerReady(playerIndex) {
+        if (playerIndex === 0) {
+            this.startP1Ready = !this.startP1Ready;
+        } else {
+            this.startP2Ready = !this.startP2Ready;
+        }
+        this.audioEngine.playTorchClick(true);
+        this.updateStartReadyUI(0, this.startP1Ready);
+        this.updateStartReadyUI(1, this.startP2Ready);
+
+        if (this.startP1Ready && this.startP2Ready) {
+            setTimeout(() => this.startGameFromStartMenu(), 250);
+        }
+    }
+
     updateStartReadyLoop(dt) {
-        // Player 1 Hold Detection
-        if (this.inputManager.isAnyButtonHeld(0)) {
-            this.startP1HoldTimer += dt;
-        } else if (!this.startP1Ready) {
-            this.startP1HoldTimer = Math.max(0, this.startP1HoldTimer - dt * 2.5);
-        }
-
-        const p1Prog = Math.min(1.0, this.startP1HoldTimer / this.requiredHoldTime);
-        if (p1Prog >= 1.0 && !this.startP1Ready) {
-            this.startP1Ready = true;
-            this.audioEngine.playTorchClick(true);
-        }
-        this.updateStartReadyUI(0, this.startP1Ready, p1Prog);
-
-        // Player 2 Hold Detection
-        if (this.inputManager.isAnyButtonHeld(1)) {
-            this.startP2HoldTimer += dt;
-        } else if (!this.startP2Ready) {
-            this.startP2HoldTimer = Math.max(0, this.startP2HoldTimer - dt * 2.5);
-        }
-
-        const p2Prog = Math.min(1.0, this.startP2HoldTimer / this.requiredHoldTime);
-        if (p2Prog >= 1.0 && !this.startP2Ready) {
-            this.startP2Ready = true;
-            this.audioEngine.playTorchClick(true);
-        }
-        this.updateStartReadyUI(1, this.startP2Ready, p2Prog);
+        this.updateStartReadyUI(0, this.startP1Ready);
+        this.updateStartReadyUI(1, this.startP2Ready);
 
         if (this.startP1Ready && this.startP2Ready) {
             this.startGameFromStartMenu();
         }
     }
 
-    updateStartReadyUI(playerIndex, isReady, progress = 0) {
-        const badgeId = playerIndex === 0 ? 'start-p1-ready-badge' : 'start-p2-ready-badge';
-        const barId = playerIndex === 0 ? 'start-p1-ready-bar' : 'start-p2-ready-bar';
-        const badge = document.getElementById(badgeId);
-        const bar = document.getElementById(barId);
-        if (!badge) return;
+    updateStartReadyUI(playerIndex, isReady) {
+        const btnId = playerIndex === 0 ? 'btn-p1-ready' : 'btn-p2-ready';
+        const textId = playerIndex === 0 ? 'p1-ready-text' : 'p2-ready-text';
+        const btn = document.getElementById(btnId);
+        const textEl = document.getElementById(textId);
+        if (!btn || !textEl) return;
 
         const pName = playerIndex === 0 ? 'P1' : 'P2';
-        if (bar) {
-            bar.style.width = `${Math.floor(progress * 100)}%`;
-        }
-
         if (isReady) {
-            badge.className = 'ready-badge ready';
-            badge.querySelector('.rb-text').textContent = `${pName}: PRÊT ✓`;
+            btn.classList.add('active');
+            textEl.textContent = `${pName}: PRÊT POUR LE COMBAT ! ✓`;
         } else {
-            badge.className = 'ready-badge waiting';
-            if (progress > 0) {
-                badge.querySelector('.rb-text').textContent = `${pName}: MAINTENEZ... ${Math.floor(progress * 100)}%`;
-            } else {
-                badge.querySelector('.rb-text').textContent = `${pName}: MAINTENEZ UN BOUTON 🎮`;
-            }
+            btn.classList.remove('active');
+            textEl.textContent = `${pName}: APPUYER SUR [A] / CLIC POUR ÊTRE PRÊT`;
         }
     }
 
