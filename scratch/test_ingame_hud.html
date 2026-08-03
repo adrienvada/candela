@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Test In-Game Weapon HUD Active</title>
+</head>
+<body style="margin: 0; background: #000;">
+    <iframe id="gameFrame" src="../index.html" style="width: 100vw; height: 100vh; border: none;"></iframe>
+
+    <script>
+        const iframe = document.getElementById('gameFrame');
+        iframe.onload = () => {
+            const win = iframe.contentWindow;
+
+            // Connect simulated gamepads
+            const fakeGp1 = { id: 'P1', index: 0, connected: true, timestamp: performance.now(), mapping: 'standard', axes: [0,0,0,0], buttons: Array(17).fill(0).map(()=>({pressed:false,value:0})) };
+            const fakeGp2 = { id: 'P2', index: 1, connected: true, timestamp: performance.now(), mapping: 'standard', axes: [0,0,0,0], buttons: Array(17).fill(0).map(()=>({pressed:false,value:0})) };
+            win.navigator.getGamepads = () => [fakeGp1, fakeGp2];
+
+            setTimeout(() => {
+                if (win.game) {
+                    win.game.startGameFromStartMenu();
+                    console.log("🎮 Match started active view!");
+                }
+            }, 500);
+        };
+    </script>
+</body>
+</html>

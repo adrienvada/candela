@@ -386,8 +386,104 @@ html, body {
     padding: 18px 24px;
 }
 
-/* Player HUD Cards (Top Left / Right) */
-.player-hud {
+/* In-Game Dynamic Weapon HUD Cards */
+.hud-weapons-display {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.hud-weapon-card {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(15, 23, 42, 0.85);
+    border-radius: 8px;
+    padding: 6px 10px;
+    backdrop-filter: blur(12px);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
+.hud-weapon-card.active {
+    border: 1.5px solid #00f0ff;
+    box-shadow: 0 0 15px rgba(0, 240, 255, 0.35);
+    transform: scale(1.05);
+}
+
+.hud-weapon-card.active.p2-active {
+    border-color: #ff0055;
+    box-shadow: 0 0 15px rgba(255, 0, 85, 0.35);
+}
+
+.hud-weapon-card.secondary {
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    opacity: 0.75;
+}
+
+.hud-weapon-card.secondary:hover {
+    opacity: 1.0;
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.hw-img-wrap {
+    width: 38px;
+    height: 38px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.hw-img-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.hw-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.hw-name {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    color: #f8fafc;
+    letter-spacing: 0.5px;
+}
+
+.hw-tag {
+    font-size: 9px;
+    font-weight: 800;
+    padding: 1px 5px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.hw-tag.active-tag {
+    background: rgba(0, 240, 255, 0.2);
+    color: #00f0ff;
+    border: 1px solid rgba(0, 240, 255, 0.4);
+}
+
+.p2-active .hw-tag.active-tag {
+    background: rgba(255, 0, 85, 0.2);
+    color: #ff0055;
+    border-color: rgba(255, 0, 85, 0.4);
+}
+
+.hw-tag.sec-tag {
+    background: rgba(255, 255, 255, 0.08);
+    color: #94a3b8;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
     position: absolute;
     top: 20px;
     width: 330px;

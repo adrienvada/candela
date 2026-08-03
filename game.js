@@ -2638,7 +2638,43 @@ class CandelaGame {
             this.triggerRoundEnd(this.players[0], "ATTACK FROM SHADOWS");
         }
 
+        this.updateInGameWeaponHUD();
         this.updateGamepadStatusUI(inP1.hasGamepad, inP2.hasGamepad);
+    }
+
+    updateInGameWeaponHUD() {
+        const imgMap = {
+            PISTOL: 'assets/weapons/pistol.jpg',
+            SHOTGUN: 'assets/weapons/shotgun.jpg',
+            SNIPER: 'assets/weapons/sniper.jpg'
+        };
+
+        const shortNameMap = {
+            PISTOL: 'PISTOLET',
+            SHOTGUN: 'POMPE',
+            SNIPER: 'SNIPER'
+        };
+
+        for (let pIdx = 0; pIdx < 2; pIdx++) {
+            const player = this.players[pIdx];
+            const pStr = pIdx === 0 ? 'p1' : 'p2';
+
+            const activeSpec = player.getActiveWeapon();
+            const activeId = activeSpec.id;
+            const secIndex = player.currentWeaponIndex === 0 ? 1 : 0;
+            const secId = player.weapons[secIndex] || 'SHOTGUN';
+            const secSpec = WEAPONS[secId] || WEAPONS['SHOTGUN'];
+
+            const activeImgEl = document.getElementById(`${pStr}-active-w-img`);
+            const activeNameEl = document.getElementById(`${pStr}-active-w-name`);
+            const secImgEl = document.getElementById(`${pStr}-sec-w-img`);
+            const secNameEl = document.getElementById(`${pStr}-sec-w-name`);
+
+            if (activeImgEl && imgMap[activeId]) activeImgEl.src = imgMap[activeId];
+            if (activeNameEl) activeNameEl.textContent = shortNameMap[activeId] || activeSpec.name;
+            if (secImgEl && imgMap[secId]) secImgEl.src = imgMap[secId];
+            if (secNameEl) secNameEl.textContent = shortNameMap[secId] || secSpec.name;
+        }
     }
 
     updateVictoryReadyLoop(dt) {
