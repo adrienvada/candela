@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Dual Gamepad Launch</title>
+</head>
+<body style="margin: 0; background: #000;">
+    <iframe id="gameFrame" src="../index.html" style="width: 100vw; height: 100vh; border: none;"></iframe>
+
+    <script>
+        const iframe = document.getElementById('gameFrame');
+        iframe.onload = () => {
+            const win = iframe.contentWindow;
+
+            // Inject 2 simulated gamepads
+            const fakeGp1 = {
+                id: 'DualSense Wireless (P1 SIMULATED)',
+                index: 0,
+                connected: true,
+                timestamp: performance.now(),
+                mapping: 'standard',
+                axes: [0, 0, 0, 0],
+                buttons: Array(17).fill(0).map((_, i) => ({ pressed: true, value: 1.0 }))
+            };
+
+            const fakeGp2 = {
+                id: 'Xbox Controller (P2 SIMULATED)',
+                index: 1,
+                connected: true,
+                timestamp: performance.now(),
+                mapping: 'standard',
+                axes: [0, 0, 0, 0],
+                buttons: Array(17).fill(0).map((_, i) => ({ pressed: true, value: 1.0 }))
+            };
+
+            win.navigator.getGamepads = () => [fakeGp1, fakeGp2];
+            win.dispatchEvent(new CustomEvent('gamepadconnected', { gamepad: fakeGp1 }));
+            win.dispatchEvent(new CustomEvent('gamepadconnected', { gamepad: fakeGp2 }));
+
+            // Simulate holding start button for 2 seconds to launch gameplay!
+            let elapsed = 0;
+            const interval = setInterval(() => {
+                elapsed += 100;
+                fakeGp1.timestamp = performance.now();
+                fakeGp2.timestamp = performance.now();
+                if (elapsed > 2200) {
+                    clearInterval(interval);
+                    console.log("🎮 Game launch simulation complete!");
+                }
+            }, 100);
+        };
+    </script>
+</body>
+</html>

@@ -52,153 +52,26 @@
                     <span id="layout-badge" style="background: rgba(0, 240, 255, 0.15); border: 1px solid rgba(0, 240, 255, 0.4); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 800; color: #00f0ff; white-space: nowrap;">🌐 CLAVIER DÉTECTÉ: AZERTY / QWERTY</span>
                 </div>
 
-                <!-- Schéma de la Manette -->
-                <div class="controls-diagram-wrapper"
-                    style="width: 100%; display: flex; justify-content: center; padding: 10px 0;">
-                    <svg viewBox="0 -20 580 275" class="gamepad-diagram"
-                        style="width: 100%; max-width: 600px; margin: 0; overflow: visible;">
-                        <defs>
-                            <linearGradient id="controllerBody" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stop-color="#2d3748" />
-                                <stop offset="100%" stop-color="#1a202c" />
-                            </linearGradient>
-                            <linearGradient id="stickGrad" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stop-color="#4a5568" />
-                                <stop offset="100%" stop-color="#2d3748" />
-                            </linearGradient>
-                        </defs>
-
-                        <!-- CONTROLLER BODY SHAPE -->
-                        <g transform="translate(0, 0)">
-                            <!-- Handles / Grips & Base -->
-                            <path
-                                d="M 190,55 C 220,55 240,75 290,75 C 340,75 360,55 390,55 C 430,55 460,80 460,130 C 460,185 425,215 395,215 C 375,215 355,185 340,175 C 310,165 270,165 240,175 C 225,185 205,215 185,215 C 155,215 120,185 120,130 C 120,80 150,55 190,55 Z"
-                                fill="url(#controllerBody)" stroke="#4a5568" stroke-width="3"
-                                filter="drop-shadow(0px 8px 16px rgba(0,0,0,0.6))" />
-
-                            <!-- Triggers / Bumpers Top -->
-                            <!-- L2 Trigger (Torche - Jaune #ffea00) -->
-                            <path d="M 160,55 C 160,35 185,30 205,35 L 210,55 Z" fill="#3a4a5e" stroke="#ffea00"
-                                stroke-width="2" />
-                            <!-- R2 Trigger (Tir - Rouge #ff4757) -->
-                            <path d="M 420,55 C 420,35 395,30 375,35 L 370,55 Z" fill="#3a4a5e" stroke="#ff4757"
-                                stroke-width="2" />
-
-                            <!-- D-PAD (Left Side) -->
-                            <g transform="translate(170, 90)">
-                                <path
-                                    d="M 12,-12 H 4 V -20 H -4 V -12 H -12 V -4 H -20 V 4 H -12 V 12 H -4 V 20 H 4 V 12 H 12 V 4 H 20 V -4 H 12 Z"
-                                    fill="#1a202c" stroke="#4a5568" stroke-width="2" />
-                            </g>
-
-                            <!-- ACTION BUTTONS (Courir - Vert #2ed573) -->
-                            <g transform="translate(410, 90)">
-                                <circle cx="0" cy="-14" r="6" fill="#1a202c" stroke="#2ed573" stroke-width="2" />
-                                <circle cx="14" cy="0" r="6" fill="#1a202c" stroke="#2ed573" stroke-width="2" />
-                                <circle cx="0" cy="14" r="6" fill="#1a202c" stroke="#2ed573" stroke-width="2" />
-                                <circle cx="-14" cy="0" r="6" fill="#1a202c" stroke="#2ed573" stroke-width="2" />
-                            </g>
-
-                            <!-- LEFT THUMBSTICK (Déplacement - Bleu #00f0ff) -->
-                            <g transform="translate(225, 140)">
-                                <circle cx="0" cy="0" r="20" fill="#1a202c" stroke="#4a5568" stroke-width="2" />
-                                <circle cx="0" cy="0" r="14" fill="url(#stickGrad)" stroke="#00f0ff" stroke-width="2" />
-                                <line x1="-8" y1="0" x2="8" y2="0" stroke="#00f0ff" stroke-width="1.5" opacity="0.7" />
-                                <line x1="0" y1="-8" x2="0" y2="8" stroke="#00f0ff" stroke-width="1.5" opacity="0.7" />
-                            </g>
-
-                            <!-- RIGHT THUMBSTICK (Visée - Violet #a855f7) -->
-                            <g transform="translate(355, 140)">
-                                <circle cx="0" cy="0" r="20" fill="#1a202c" stroke="#4a5568" stroke-width="2" />
-                                <circle cx="0" cy="0" r="14" fill="url(#stickGrad)" stroke="#a855f7" stroke-width="2" />
-                                <line x1="-8" y1="0" x2="8" y2="0" stroke="#a855f7" stroke-width="1.5" opacity="0.7" />
-                                <line x1="0" y1="-8" x2="0" y2="8" stroke="#a855f7" stroke-width="1.5" opacity="0.7" />
-                            </g>
-
-                            <!-- Center Details -->
-                            <circle cx="290" cy="100" r="10" fill="#1a202c" stroke="#718096" stroke-width="2" />
-                        </g>
-
-                        <!-- ANNOTATIONS (Icônes x2 agrandies) -->
-
-                        <!-- 1. TORCHE (Jaune #ffea00 - 🔦) -->
-                        <g>
-                            <polyline points="185,35 120,25 76,25" fill="none" stroke="#ffea00" stroke-width="2"
-                                stroke-dasharray="5,3" />
-                            <circle cx="185" cy="35" r="5" fill="#ffea00" />
-                            <circle cx="50" cy="25" r="26" fill="#1a202c" stroke="#ffea00" stroke-width="3"
-                                filter="drop-shadow(0 0 8px rgba(255,234,0,0.4))" />
-                            <text x="50" y="27" font-size="30" text-anchor="middle"
-                                dominant-baseline="central">🔦</text>
-                        </g>
-
-                        <!-- 2. TIR (Rouge #ff4757 - Explosion / Tir 💥) -->
-                        <g>
-                            <polyline points="395,35 460,25 504,25" fill="none" stroke="#ff4757" stroke-width="2"
-                                stroke-dasharray="5,3" />
-                            <circle cx="395" cy="35" r="5" fill="#ff4757" />
-                            <circle cx="530" cy="25" r="26" fill="#1a202c" stroke="#ff4757" stroke-width="3"
-                                filter="drop-shadow(0 0 8px rgba(255,71,87,0.4))" />
-                            <text x="530" y="27" font-size="30" text-anchor="middle"
-                                dominant-baseline="central">💥</text>
-                        </g>
-
-                        <!-- 3. COURIR (Vert #2ed573 - Course rapide 🏃) -->
-                        <g>
-                            <polyline points="410,90 504,90" fill="none" stroke="#2ed573" stroke-width="2"
-                                stroke-dasharray="5,3" />
-                            <circle cx="410" cy="90" r="5" fill="#2ed573" />
-                            <circle cx="530" cy="90" r="26" fill="#1a202c" stroke="#2ed573" stroke-width="3"
-                                filter="drop-shadow(0 0 8px rgba(46,213,115,0.4))" />
-                            <text x="530" y="92" font-size="30" text-anchor="middle"
-                                dominant-baseline="central">🏃</text>
-                        </g>
-
-                        <!-- 4. DÉPLACEMENT (Bleu #00f0ff - Marche 🚶) -->
-                        <g>
-                            <polyline points="225,140 140,195 76,195" fill="none" stroke="#00f0ff" stroke-width="2"
-                                stroke-dasharray="5,3" />
-                            <circle cx="225" cy="140" r="5" fill="#00f0ff" />
-                            <circle cx="50" cy="195" r="24" fill="#1a202c" stroke="#00f0ff" stroke-width="3"
-                                filter="drop-shadow(0 0 8px rgba(0,240,255,0.4))" />
-                            <text x="50" y="197" font-size="26" text-anchor="middle"
-                                dominant-baseline="central">🚶</text>
-                        </g>
-
-                        <!-- 6. CHANGER D'ARME (Croix directionnelle - 🔄) -->
-                        <g>
-                            <polyline points="170,90 76,110" fill="none" stroke="#e2e8f0" stroke-width="2"
-                                stroke-dasharray="5,3" />
-                            <circle cx="170" cy="90" r="5" fill="#e2e8f0" />
-                            <circle cx="50" cy="110" r="24" fill="#1a202c" stroke="#e2e8f0" stroke-width="3"
-                                filter="drop-shadow(0 0 8px rgba(255,255,255,0.4))" />
-                            <text x="50" y="112" font-size="26" text-anchor="middle"
-                                dominant-baseline="central">🔄</text>
-                        </g>
-
-                        <!-- 5. VISÉE (Violet #a855f7 - 🎯) -->
-                        <g>
-                            <polyline points="355,140 440,205 504,205" fill="none" stroke="#a855f7" stroke-width="2"
-                                stroke-dasharray="5,3" />
-                            <circle cx="355" cy="140" r="5" fill="#a855f7" />
-                            <circle cx="530" cy="205" r="26" fill="#1a202c" stroke="#a855f7" stroke-width="3"
-                                filter="drop-shadow(0 0 8px rgba(168,85,247,0.4))" />
-                            <text x="530" y="207" font-size="30" text-anchor="middle"
-                                dominant-baseline="central">🎯</text>
-                        </g>
-                    </svg>
+                <!-- Compact & Elegant Controls Bar -->
+                <div class="controls-compact-bar">
+                    <div class="control-pill"><span class="pill-icon">🚶</span><span class="pill-label">DÉPLACEMENT</span><span class="pill-key">STICK L</span></div>
+                    <div class="control-pill"><span class="pill-icon">🎯</span><span class="pill-label">VISÉE</span><span class="pill-key">STICK R</span></div>
+                    <div class="control-pill"><span class="pill-icon">💥</span><span class="pill-label">TIR</span><span class="pill-key">RT / R2</span></div>
+                    <div class="control-pill"><span class="pill-icon">🔦</span><span class="pill-label">TORCHE</span><span class="pill-key">LT / L2</span></div>
+                    <div class="control-pill"><span class="pill-icon">🏃</span><span class="pill-label">DASH</span><span class="pill-key">B / CIRCLE</span></div>
+                    <div class="control-pill"><span class="pill-icon">🔄</span><span class="pill-label">CHANGER ARME</span><span class="pill-key">CROIX / Y</span></div>
                 </div>
                 <!-- Rich VS Weapon & Map Selection Grid -->
                 <div class="vs-selection-container">
                     <!-- P1 LOADOUT PANEL -->
-                    <div class="player-vs-panel p1-vs-panel">
-                        <div class="player-panel-header p1-header">
+                    <div class="player-loadout-card p1-side">
+                        <div class="player-card-header">
                             <span class="p1-badge">P1</span>
-                            <span class="player-panel-name">JOUEUR 1</span>
+                            <span class="player-name">JOUEUR 1</span>
                         </div>
 
                         <!-- Slot 1 Card -->
-                        <div class="weapon-slot-card p1-border" id="p1-slot-1-card" data-player="0" data-slot="0">
+                        <div class="weapon-slot-card p1-border focusable-ui" id="p1-slot-1-card" data-player="0" data-slot="0" tabindex="0" onclick="game.cycleWeaponChoice(0, 0)">
                             <div class="slot-badge">ARME PRINCIPALE</div>
                             <div class="weapon-card-body">
                                 <div class="weapon-card-img-wrap"><img class="weapon-card-img" id="p1-w1-img" src="assets/weapons/pistol.jpg" alt="Arme"></div>
@@ -215,7 +88,7 @@
                         </div>
 
                         <!-- Slot 2 Card -->
-                        <div class="weapon-slot-card p1-border" id="p1-slot-2-card" data-player="0" data-slot="1">
+                        <div class="weapon-slot-card p1-border focusable-ui" id="p1-slot-2-card" data-player="0" data-slot="1" tabindex="0" onclick="game.cycleWeaponChoice(0, 1)">
                             <div class="slot-badge">ARME SECONDAIRE</div>
                             <div class="weapon-card-body">
                                 <div class="weapon-card-img-wrap"><img class="weapon-card-img" id="p1-w2-img" src="assets/weapons/shotgun.jpg" alt="Arme"></div>
@@ -243,15 +116,15 @@
                         <div class="match-format-box">
                             <span class="format-label">FORMAT DE MATCH</span>
                             <div class="format-btn-group">
-                                <button class="format-btn" data-format="BO1">Bo1</button>
-                                <button class="format-btn active" data-format="BO3">Bo3</button>
-                                <button class="format-btn" data-format="BO5">Bo5</button>
+                                <button class="format-btn focusable-ui" id="btn-bo1" data-format="BO1" tabindex="0">Bo1</button>
+                                <button class="format-btn active focusable-ui" id="btn-bo3" data-format="BO3" tabindex="0">Bo3</button>
+                                <button class="format-btn focusable-ui" id="btn-bo5" data-format="BO5" tabindex="0">Bo5</button>
                             </div>
                         </div>
 
                         <div class="map-carousel-wrapper">
-                            <button id="start-map-prev" class="map-nav-btn" title="Carte précédente">◀</button>
-                            <div id="start-map-card" class="map-card">
+                            <button id="start-map-prev" class="map-nav-btn focusable-ui" title="Carte précédente" tabindex="0">◀</button>
+                            <div id="start-map-card" class="map-card focusable-ui" tabindex="0">
                                 <div class="map-card-header">
                                     <span id="start-map-icon" class="map-card-icon">🏛️</span>
                                     <span id="start-map-title" class="map-card-title">ARENA CLASSIQUE</span>
@@ -259,19 +132,19 @@
                                 <div id="start-map-desc" class="map-card-desc">Map équilibrée avec pilier central et angles découverts</div>
                                 <div id="start-map-size" class="map-card-size">1400 × 1400 px</div>
                             </div>
-                            <button id="start-map-next" class="map-nav-btn" title="Carte suivante">▶</button>
+                            <button id="start-map-next" class="map-nav-btn focusable-ui" title="Carte suivante" tabindex="0">▶</button>
                         </div>
                     </div>
 
                     <!-- P2 LOADOUT PANEL -->
-                    <div class="player-vs-panel p2-vs-panel">
-                        <div class="player-panel-header p2-header">
-                            <span class="player-panel-name">JOUEUR 2</span>
+                    <div class="player-loadout-card p2-side">
+                        <div class="player-card-header">
+                            <span class="player-name">JOUEUR 2</span>
                             <span class="p2-badge">P2</span>
                         </div>
 
                         <!-- Slot 1 Card -->
-                        <div class="weapon-slot-card p2-border" id="p2-slot-1-card" data-player="1" data-slot="0">
+                        <div class="weapon-slot-card p2-border focusable-ui" id="p2-slot-1-card" data-player="1" data-slot="0" tabindex="0" onclick="game.cycleWeaponChoice(1, 0)">
                             <div class="slot-badge">ARME PRINCIPALE</div>
                             <div class="weapon-card-body">
                                 <div class="weapon-card-img-wrap"><img class="weapon-card-img" id="p2-w1-img" src="assets/weapons/pistol.jpg" alt="Arme"></div>
@@ -288,19 +161,19 @@
                         </div>
 
                         <!-- Slot 2 Card -->
-                        <div class="weapon-slot-card p2-border" id="p2-slot-2-card" data-player="1" data-slot="1">
+                        <div class="weapon-slot-card p2-border focusable-ui" id="p2-slot-2-card" data-player="1" data-slot="1" tabindex="0" onclick="game.cycleWeaponChoice(1, 1)">
                             <div class="slot-badge">ARME SECONDAIRE</div>
                             <div class="weapon-card-body">
                                 <div class="weapon-card-img-wrap"><img class="weapon-card-img" id="p2-w2-img" src="assets/weapons/sniper.jpg" alt="Arme"></div>
                                 <div class="weapon-card-info">
-                                    <div class="weapon-card-name" id="p2-w2-name">SNIPER DE PRÉCISION</div>
+                                    <div class="weapon-card-name" id="p2-w2-name">SNIPER LOURD</div>
                                     <div class="weapon-card-desc" id="p2-w2-desc">Tir lourd • Longue portée</div>
                                 </div>
                             </div>
                             <div class="weapon-stats-list">
-                                <div class="stat-row"><span class="stat-label">DÉGÂTS</span><div class="stat-bar-bg"><div class="stat-bar-fill damage-fill" id="p2-w2-damage-bar" style="width: 95%;"></div></div><span class="stat-val" id="p2-w2-damage-val">80</span></div>
-                                <div class="stat-row"><span class="stat-label">PORTÉE</span><div class="stat-bar-bg"><div class="stat-bar-fill range-fill" id="p2-w2-range-bar" style="width: 100%;"></div></div><span class="stat-val" id="p2-w2-range-val">4500</span></div>
-                                <div class="stat-row"><span class="stat-label">CADENCE</span><div class="stat-bar-bg"><div class="stat-bar-fill rate-fill" id="p2-w2-rate-bar" style="width: 20%;"></div></div><span class="stat-val" id="p2-w2-rate-val">2.2s</span></div>
+                                <div class="stat-row"><span class="stat-label">DÉGÂTS</span><div class="stat-bar-bg"><div class="stat-bar-fill damage-fill" id="p2-w2-damage-bar" style="width: 100%;"></div></div><span class="stat-val" id="p2-w2-damage-val">80</span></div>
+                                <div class="stat-row"><span class="stat-label">PORTÉE</span><div class="stat-bar-bg"><div class="stat-bar-fill range-fill" id="p2-w2-range-bar" style="width: 90%;"></div></div><span class="stat-val" id="p2-w2-range-val">4500</span></div>
+                                <div class="stat-row"><span class="stat-label">CADENCE</span><div class="stat-bar-bg"><div class="stat-bar-fill rate-fill" id="p2-w2-rate-bar" style="width: 25%;"></div></div><span class="stat-val" id="p2-w2-rate-val">2.2s</span></div>
                             </div>
                         </div>
                     </div>

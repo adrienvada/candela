@@ -2195,20 +2195,94 @@ class CandelaGame {
         target.dazzleSourceAngle = illuminator.angle;
     }
 
+    handleProximityNavigation(playerIndex, inInput, dt) {
+        if (!this.focusedEls) this.focusedEls = [null, null];
+        if (!this.navCooldowns) this.navCooldowns = [0, 0];
+
+        if (this.navCooldowns[playerIndex] > 0) {
+            this.navCooldowns[playerIndex] -= dt;
+        }
+
+        const focusClass = playerIndex === 0 ? 'gamepad-focus-p1' : 'gamepad-focus-p2';
+        const focusables = Array.from(document.querySelectorAll('.focusable-ui'));
+
+        if (focusables.length === 0) return;
+
+        // Default initial focus
+        if (!this.focusedEls[playerIndex] || !document.body.contains(this.focusedEls[playerIndex])) {
+            const defaultId = playerIndex === 0 ? 'p1-slot-1-card' : 'p2-slot-1-card';
+            this.focusedEls[playerIndex] = document.getElementById(defaultId) || focusables[0];
+        }
+
+        let curr = this.focusedEls[playerIndex];
+
+        // Apply visual focus outline
+        if (curr) curr.classList.add(focusClass);
+
+        const dx = inInput.moveX;
+        const dy = inInput.moveY;
+
+        // Directional movement with threshold
+        if (this.navCooldowns[playerIndex] <= 0 && (Math.abs(dx) > 0.45 || Math.abs(dy) > 0.45)) {
+            const currRect = curr.getBoundingClientRect();
+            const currCX = currRect.left + currRect.width / 2;
+            const currCY = currRect.top + currRect.height / 2;
+
+            let bestCandidate = null;
+            let bestDist = Infinity;
+
+            for (const candidate of focusables) {
+                if (candidate === curr) continue;
+                const r = candidate.getBoundingClientRect();
+                const candidateCX = r.left + r.width / 2;
+                const candidateCY = r.top + r.height / 2;
+
+                const vX = candidateCX - currCX;
+                const vY = candidateCY - currCY;
+
+                // Check angle alignment with input vector
+                const dot = vX * dx + vY * dy;
+                if (dot > 0) { // Candidate is in moving direction!
+                    const dist = Math.hypot(vX, vY);
+                    if (dist < bestDist) {
+                        bestDist = dist;
+                        bestCandidate = candidate;
+                    }
+                }
+            }
+
+            if (bestCandidate) {
+                if (curr) curr.classList.remove(focusClass);
+                this.focusedEls[playerIndex] = bestCandidate;
+                bestCandidate.classList.add(focusClass);
+                this.audioEngine.playTorchClick(false);
+                this.navCooldowns[playerIndex] = 0.22;
+            }
+        }
+
+        // Action Trigger (A / Cross / X / Trigger / Space)
+        if (!this.actionDebounce) this.actionDebounce = [false, false];
+        const isActionPressed = inInput.shoot || inInput.dash || inInput.switchWeapon;
+
+        if (isActionPressed && !this.actionDebounce[playerIndex]) {
+            this.actionDebounce[playerIndex] = true;
+            if (curr) {
+                curr.click();
+                this.audioEngine.playTorchClick(true);
+            }
+        } else if (!isActionPressed) {
+            this.actionDebounce[playerIndex] = false;
+        }
+    }
+
     updateMenuCursors(dt) {
         if (this.gameState !== 'VICTORY' && this.gameState !== 'START') return;
 
         const inP1 = this.inputManager.getPlayerInput(0, this.players[0], null);
         const inP2 = this.inputManager.getPlayerInput(1, this.players[1], null);
 
-        const moveX = inP1.moveX || inP2.moveX;
-        if (!this.navCooldown) this.navCooldown = 0;
-        if (this.navCooldown > 0) this.navCooldown -= dt;
-
-        if (this.navCooldown <= 0 && Math.abs(moveX) > 0.45) {
-            this.changeMapIndex(moveX > 0 ? 1 : -1);
-            this.navCooldown = 0.28;
-        }
+        this.handleProximityNavigation(0, inP1, dt);
+        this.handleProximityNavigation(1, inP2, dt);
     }
 
     updateStartReadyLoop(dt) {
