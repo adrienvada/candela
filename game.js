@@ -306,6 +306,8 @@ class InputManager {
         let shoot = false;
         let light = false;
         let sprint = false;
+        let switchWeapon = false;
+        let dash = false;
 
         // 1. GAMEPAD INPUT PROCESSING
         if (gp) {
@@ -379,15 +381,18 @@ class InputManager {
             light = ltVal > 0.25 || lbPressed;
             shoot = rtVal > 0.25 || rbPressed;
 
-            // Sprint: any face button [0,1,2,3] or L3/R3 [10,11]
-            for (let i = 0; i < 4; i++) {
-                if (gp.buttons[i] && (gp.buttons[i].pressed || getVal(i) > 0.5)) {
-                    sprint = true;
-                    break;
-                }
-            }
-            if (gp.buttons[10] && (gp.buttons[10].pressed || getVal(10) > 0.5)) sprint = true;
-            if (gp.buttons[11] && (gp.buttons[11].pressed || getVal(11) > 0.5)) sprint = true;
+            // Weapon Switch: Y / Triangle (Button 3) or LB (Button 4)
+            const yBtn = gp.buttons[3] && (gp.buttons[3].pressed || getVal(3) > 0.5);
+            if (yBtn) switchWeapon = true;
+
+            // Dash: B / Circle (Button 1) or L3 (10) or R3 (11)
+            const bBtn = gp.buttons[1] && (gp.buttons[1].pressed || getVal(1) > 0.5);
+            if (bBtn) dash = true;
+
+            // Sprint: A / Cross (0) or X / Square (2)
+            const aBtn = gp.buttons[0] && (gp.buttons[0].pressed || getVal(0) > 0.5);
+            const xBtn = gp.buttons[2] && (gp.buttons[2].pressed || getVal(2) > 0.5);
+            if (aBtn || xBtn) sprint = true;
         }
 
         // 2. KEYBOARD & MOUSE FALLBACK / OVERLAY
@@ -414,8 +419,10 @@ class InputManager {
             }
 
             if (this.mouseButtons.left || this.keys['KeyE'] || this.keys['e'] || this.keys['KeyF'] || this.keys['f']) shoot = true;
-            if (this.mouseButtons.right || this.keys['Space'] || this.keys[' ']) light = true;
+            if (this.mouseButtons.right) light = true;
             if (this.keys['ShiftLeft']) sprint = true;
+            if (this.keys['Space'] || this.keys[' ']) dash = true;
+            if (this.keys['KeyQ'] || this.keys['q'] || this.keys['Tab'] || this.keys['Digit1'] || this.keys['Digit2']) switchWeapon = true;
         } else if (playerIndex === 1) {
             // P2 Keyboard Controls (Arrows + IJKL Aim + O/P/M)
             if (moveX === 0 && moveY === 0) {
@@ -443,10 +450,12 @@ class InputManager {
 
             if (this.keys['KeyO'] || this.keys['o'] || this.keys['Numpad0'] || this.keys['Numpad1'] || this.keys['Numpad4']) shoot = true;
             if (this.keys['KeyP'] || this.keys['p'] || this.keys['NumpadControl'] || this.keys['Numpad2'] || this.keys['Numpad5']) light = true;
-            if (this.keys['KeyM'] || this.keys['m'] || this.keys['Semicolon'] || this.keys['ShiftRight']) sprint = true;
+            if (this.keys['KeyM'] || this.keys['m'] || this.keys['Semicolon']) sprint = true;
+            if (this.keys['ShiftRight'] || this.keys['KeyN'] || this.keys['n']) dash = true;
+            if (this.keys['KeyU'] || this.keys['u'] || this.keys['Numpad3']) switchWeapon = true;
         }
 
-        return { moveX, moveY, aimAngle, shoot, light, sprint, hasGamepad: !!gp };
+        return { moveX, moveY, aimAngle, shoot, light, sprint, switchWeapon, dash, hasGamepad: !!gp };
     }
 
     isSkipButtonHeld(playerIndex) {
@@ -882,6 +891,13 @@ class RaycastEngine {
     }
 }
 
+// WEAPON REGISTRY
+const WEAPONS = {
+    PISTOL: { id: 'PISTOL', name: 'PISTOLET', icon: '🔫', damage: 35, cooldown: 0.5, range: 3500, pellets: 1, spread: 0, shake: 0.8, color: '#ffe600' },
+    SHOTGUN: { id: 'SHOTGUN', name: 'POMPE', icon: '💥', damage: 16, cooldown: 1.1, range: 550, pellets: 5, spread: 0.16, shake: 1.6, color: '#ff5500' },
+    SNIPER: { id: 'SNIPER', name: 'SNIPER', icon: '🎯', damage: 80, cooldown: 2.2, range: 4500, pellets: 1, spread: 0, shake: 2.2, color: '#00ffff' }
+};
+
 // ==========================================
 // 4. ENTITIES (PLAYER, BULLET, PARTICLES)
 // ==========================================
@@ -901,12 +917,24 @@ class Player {
 
         this.speed = 260; // px/sec
         this.flashlightOn = false;
-        this.flashlightFov = Math.PI * 0.25; // ~45 degrees (narrower beam)
-        this.flashlightRange = 750; // increased range
+        this.flashlightFov = Math.PI * 0.25; // ~45 degrees
+        this.flashlightRange = 750;
 
-        this.shootCooldown = 0; // Cooldown timer (1.0s max)
-        this.maxCooldown = 1.0;
-        this.lastMuzzleFlash = 0; // Duration of light burst after firing
+        // Weapons & Loadout
+        this.weapons = id === 0 ? ['PISTOL', 'SHOTGUN'] : ['PISTOL', 'SNIPER'];
+        this.currentWeaponIndex = 0;
+        this.switchCooldown = 0; // 0.2s switch lock
+
+        // Dash Ability (1.0s cooldown)
+        this.dashCooldown = 0;
+        this.dashTimer = 0;
+        this.isDashing = false;
+        this.dashVx = 0;
+        this.dashVy = 0;
+
+        this.shootCooldown = 0;
+        this.maxCooldown = 0.5;
+        this.lastMuzzleFlash = 0;
 
         this.footstepTimer = 0;
         this.screenShake = 0;
@@ -914,7 +942,12 @@ class Player {
         this.targetAngle = startAngle;
         this.punchZoom = 0;
         this.vignetteFlash = 0;
-        this.dazzleAmount = 0; // 0 = clear vision, 1 = fully blinded
+        this.dazzleAmount = 0;
+    }
+
+    getActiveWeapon() {
+        const id = this.weapons[this.currentWeaponIndex] || 'PISTOL';
+        return WEAPONS[id] || WEAPONS.PISTOL;
     }
 
     resetPosition(x, y, angle) {
@@ -925,6 +958,10 @@ class Player {
         this.angle = angle;
         this.hp = 100;
         this.shootCooldown = 0;
+        this.switchCooldown = 0;
+        this.dashCooldown = 0;
+        this.dashTimer = 0;
+        this.isDashing = false;
         this.flashlightOn = false;
         this.lastMuzzleFlash = 0;
         this.ghostHp = 100;
@@ -934,12 +971,27 @@ class Player {
     }
 
     update(dt, input, mapSegments, audioEngine) {
-        // Cooldown timer decrease
+        // Timers update
         if (this.shootCooldown > 0) {
-            const prevCd = this.shootCooldown;
             this.shootCooldown -= dt;
-            if (this.shootCooldown <= 0) {
-                this.shootCooldown = 0;
+            if (this.shootCooldown <= 0) this.shootCooldown = 0;
+        }
+
+        if (this.switchCooldown > 0) {
+            this.switchCooldown -= dt;
+            if (this.switchCooldown <= 0) this.switchCooldown = 0;
+        }
+
+        if (this.dashCooldown > 0) {
+            this.dashCooldown -= dt;
+            if (this.dashCooldown <= 0) this.dashCooldown = 0;
+        }
+
+        if (this.dashTimer > 0) {
+            this.dashTimer -= dt;
+            if (this.dashTimer <= 0) {
+                this.dashTimer = 0;
+                this.isDashing = false;
             }
         }
 
@@ -952,31 +1004,62 @@ class Player {
             if (this.screenShake < 0) this.screenShake = 0;
         }
 
-        // Sprint logic
-        let currentSpeed = this.speed;
-        let isMoving = input.moveX !== 0 || input.moveY !== 0;
-        this.isSprinting = input.sprint && isMoving && this.hp > 0;
-
-        if (this.isSprinting) {
-            currentSpeed *= 2;
-            this.flashlightOn = false; // Disable light while sprinting
-        } else if (!input.sprint) {
-            // Only allow toggling light when sprint button is NOT held
-            this.flashlightOn = input.light && this.hp > 0;
-        } else {
-            // Sprint held but not moving: still block the light
-            this.flashlightOn = false;
+        // Weapon Switch Request (0.2s transition lock)
+        if (input.switchWeapon && this.switchCooldown <= 0 && !this.isDashing && this.hp > 0) {
+            this.currentWeaponIndex = (this.currentWeaponIndex + 1) % this.weapons.length;
+            this.switchCooldown = 0.2; // 0.2s switch time!
+            this.shootCooldown = Math.max(this.shootCooldown, 0.2);
+            audioEngine.playTorchClick(true);
         }
 
-        // Dazzle decay (fades 4x faster when no longer illuminated)
+        // Dash Ability Trigger (1.0s cooldown)
+        if (input.dash && this.dashCooldown <= 0 && this.hp > 0 && !this.isDashing) {
+            this.dashCooldown = 1.0; // 1 second cooldown!
+            this.dashTimer = 0.18;   // 0.18s active dash burst
+            this.isDashing = true;
+            this.flashlightOn = false;
+
+            let dx = input.moveX;
+            let dy = input.moveY;
+            if (dx === 0 && dy === 0) {
+                dx = Math.cos(this.angle);
+                dy = Math.sin(this.angle);
+            }
+            const mag = Math.hypot(dx, dy) || 1;
+            this.dashVx = (dx / mag) * (this.speed * 2.8);
+            this.dashVy = (dy / mag) * (this.speed * 2.8);
+
+            audioEngine.playTorchClick(false);
+        }
+
+        // Dazzle decay
         if (this.dazzleAmount > 0) {
             this.dazzleAmount = Math.max(0, this.dazzleAmount - dt * 10.0);
         }
 
-        // Movement (20% slower when fully dazzled)
-        const dazzleSpeedPenalty = 1.0 - this.dazzleAmount * 0.2;
-        this.vx = input.moveX * currentSpeed * dazzleSpeedPenalty;
-        this.vy = input.moveY * currentSpeed * dazzleSpeedPenalty;
+        // Movement Physics
+        if (this.isDashing) {
+            this.vx = this.dashVx;
+            this.vy = this.dashVy;
+            this.flashlightOn = false;
+        } else {
+            let currentSpeed = this.speed;
+            let isMoving = input.moveX !== 0 || input.moveY !== 0;
+            this.isSprinting = input.sprint && isMoving && this.hp > 0;
+
+            if (this.isSprinting) {
+                currentSpeed *= 2;
+                this.flashlightOn = false;
+            } else if (!input.sprint) {
+                this.flashlightOn = input.light && this.hp > 0;
+            } else {
+                this.flashlightOn = false;
+            }
+
+            const dazzleSpeedPenalty = 1.0 - this.dazzleAmount * 0.2;
+            this.vx = input.moveX * currentSpeed * dazzleSpeedPenalty;
+            this.vy = input.moveY * currentSpeed * dazzleSpeedPenalty;
+        }
 
         // Apply movement physics with wall collision
         const nextX = this.x + this.vx * dt;
@@ -1562,8 +1645,21 @@ class CandelaGame {
         }
     }
 
+    applySelectedLoadout() {
+        const p1w1 = document.getElementById('p1-w1-select')?.value || 'PISTOL';
+        const p1w2 = document.getElementById('p1-w2-select')?.value || 'SHOTGUN';
+        const p2w1 = document.getElementById('p2-w1-select')?.value || 'PISTOL';
+        const p2w2 = document.getElementById('p2-w2-select')?.value || 'SNIPER';
+
+        this.players[0].weapons = [p1w1, p1w2];
+        this.players[0].currentWeaponIndex = 0;
+        this.players[1].weapons = [p2w1, p2w2];
+        this.players[1].currentWeaponIndex = 0;
+    }
+
     startGameFromStartMenu() {
         this.audioEngine.init();
+        this.applySelectedLoadout();
         document.getElementById('start-overlay').classList.add('hidden');
         this.map.buildMap(this.selectedMapType);
         this.gameState = 'PLAYING';
@@ -1571,6 +1667,7 @@ class CandelaGame {
     }
 
     startNextRound() {
+        this.applySelectedLoadout();
         document.getElementById('victory-modal').classList.add('hidden');
         this.currentRound++;
         this.map.buildMap(this.selectedMapType);
@@ -1610,112 +1707,118 @@ class CandelaGame {
     }
 
     shootGun(player) {
-        if (player.shootCooldown > 0) return;
+        if (player.shootCooldown > 0 || player.switchCooldown > 0 || player.isDashing) return;
 
-        player.shootCooldown = player.maxCooldown;
+        const weapon = player.getActiveWeapon();
+        player.shootCooldown = weapon.cooldown;
         player.lastMuzzleFlash = 2.5; // 2.5s light decay curve after firing
-        player.screenShake = 0.8;
+        player.screenShake = weapon.shake;
 
         const barrelOffset = player.radius + 10;
         const startX = player.x + Math.cos(player.angle) * barrelOffset;
         const startY = player.y + Math.sin(player.angle) * barrelOffset;
 
-        // Cast ray across entire map in direction player.angle (up to 3500px)
-        const maxDist = 3500;
-        const endX = startX + Math.cos(player.angle) * maxDist;
-        const endY = startY + Math.sin(player.angle) * maxDist;
-        const fullRay = { a: { x: startX, y: startY }, b: { x: endX, y: endY } };
+        const pellets = weapon.pellets || 1;
+        const spread = weapon.spread || 0;
 
-        // 1. Find Wall Intersection Point
-        let wallHitPoint = { x: endX, y: endY };
-        let minWallParam = 1.0;
+        for (let p = 0; p < pellets; p++) {
+            const spreadAngle = (pellets > 1) ?
+                (p - (pellets - 1) / 2) * (spread / (pellets - 1)) : 0;
+            const fireAngle = player.angle + spreadAngle;
 
-        for (let i = 0; i < this.map.segments.length; i++) {
-            const intersect = RaycastEngine.getIntersection(fullRay, this.map.segments[i]);
-            if (intersect && intersect.param < minWallParam) {
-                minWallParam = intersect.param;
-                wallHitPoint = { x: intersect.x, y: intersect.y };
-            }
-        }
+            const maxDist = weapon.range || 3500;
+            const endX = startX + Math.cos(fireAngle) * maxDist;
+            const endY = startY + Math.sin(fireAngle) * maxDist;
+            const fullRay = { a: { x: startX, y: startY }, b: { x: endX, y: endY } };
 
-        const shotSegment = { p1: { x: startX, y: startY }, p2: wallHitPoint };
+            let wallHitPoint = { x: endX, y: endY };
+            let minWallParam = 1.0;
 
-        let hitOpponent = null;
-        let minOppDist = Infinity;
-        let oppImpactPoint = null;
-        let oppHitDamage = 0;
-
-        for (let i = 0; i < this.players.length; i++) {
-            const target = this.players[i];
-            if (target.id === player.id || target.hp <= 0) continue;
-
-            const closest = player.getClosestPointOnSegment(target.x, target.y, shotSegment.p1, shotSegment.p2);
-            const dist = Math.hypot(target.x - closest.x, target.y - closest.y);
-
-            const playerHitbox = target.radius * 1.2; // 1.2x enlarged player hitbox
-            if (dist <= playerHitbox) {
-                const distFromBarrel = Math.hypot(closest.x - startX, closest.y - startY);
-                if (distFromBarrel < minOppDist) {
-                    minOppDist = distFromBarrel;
-                    hitOpponent = target;
-                    oppImpactPoint = closest;
-
-                    // Damage falloff: 100% at center, 25% at extreme edge of player radius.
-                    // Cubic falloff ensures it stays high near center then drops sharply towards the edge.
-                    const normalizedDist = dist / playerHitbox;
-                    const multiplier = 0.25 + 0.75 * (1 - Math.pow(normalizedDist, 3));
-                    oppHitDamage = Math.floor(50 * multiplier);
+            for (let i = 0; i < this.map.segments.length; i++) {
+                const intersect = RaycastEngine.getIntersection(fullRay, this.map.segments[i]);
+                if (intersect && intersect.param < minWallParam) {
+                    minWallParam = intersect.param;
+                    wallHitPoint = { x: intersect.x, y: intersect.y };
                 }
             }
+
+            const shotSegment = { p1: { x: startX, y: startY }, p2: wallHitPoint };
+
+            let hitOpponent = null;
+            let minOppDist = Infinity;
+            let oppImpactPoint = null;
+            let oppHitDamage = 0;
+
+            for (let i = 0; i < this.players.length; i++) {
+                const target = this.players[i];
+                if (target.id === player.id || target.hp <= 0 || target.isDashing) continue; // Invulnerable while dashing!
+
+                const closest = player.getClosestPointOnSegment(target.x, target.y, shotSegment.p1, shotSegment.p2);
+                const dist = Math.hypot(target.x - closest.x, target.y - closest.y);
+
+                const playerHitbox = target.radius * 1.2;
+                if (dist <= playerHitbox) {
+                    const distFromBarrel = Math.hypot(closest.x - startX, closest.y - startY);
+                    if (distFromBarrel < minOppDist) {
+                        minOppDist = distFromBarrel;
+                        hitOpponent = target;
+                        oppImpactPoint = closest;
+
+                        const baseDamage = weapon.damage;
+                        let rangeFactor = 1.0;
+                        if (weapon.id === 'SHOTGUN') {
+                            const shotDist = Math.hypot(closest.x - startX, closest.y - startY);
+                            rangeFactor = Math.max(0.2, 1.0 - (shotDist / weapon.range));
+                        }
+                        const normalizedDist = dist / playerHitbox;
+                        const hitMultiplier = 0.3 + 0.7 * (1 - Math.pow(normalizedDist, 2));
+                        oppHitDamage = Math.max(5, Math.floor(baseDamage * rangeFactor * hitMultiplier));
+                    }
+                }
+            }
+
+            let finalImpactX = wallHitPoint.x;
+            let finalImpactY = wallHitPoint.y;
+
+            if (hitOpponent && oppImpactPoint) {
+                finalImpactX = oppImpactPoint.x;
+                finalImpactY = oppImpactPoint.y;
+
+                hitOpponent.hp -= oppHitDamage;
+                hitOpponent.screenShake = weapon.shake;
+                hitOpponent.punchZoom = 1.0;
+                hitOpponent.vignetteFlash = 1.0;
+                this.audioEngine.playHit();
+
+                const scoreGain = Math.max(10, oppHitDamage * 2);
+                player.score += scoreGain;
+
+                let damageText = `-${oppHitDamage} HP`;
+                if (oppHitDamage >= 50) damageText = `CRITIQUE -${oppHitDamage}`;
+                else if (oppHitDamage <= 15) damageText = `ÉRAFLURE -${oppHitDamage}`;
+
+                this.particleSystem.addFloatingText(oppImpactPoint.x, oppImpactPoint.y - 15, damageText, weapon.color);
+                this.addKillFeedEntry(`${player.name} [${weapon.icon}] → ${damageText}`, weapon.color);
+
+                if (hitOpponent.hp <= 0) {
+                    player.score += 500;
+                    this.particleSystem.addFloatingText(oppImpactPoint.x, oppImpactPoint.y - 35, '+500 ÉLIMINATION !', '#00ff88');
+                    this.addKillFeedEntry(`${player.name} ✦ ÉLIMINATION !`, '#00ff88');
+                }
+
+                for (let k = 0; k < 8; k++) {
+                    this.particleSystem.addBloodSpark(oppImpactPoint.x, oppImpactPoint.y, fireAngle);
+                }
+            } else {
+                for (let k = 0; k < 4; k++) {
+                    this.particleSystem.addSpark(wallHitPoint.x, wallHitPoint.y, fireAngle + Math.PI);
+                }
+                this.bulletDecals.push({ x: wallHitPoint.x, y: wallHitPoint.y, size: 3 + Math.random() * 3, alpha: 0.6 });
+                if (this.bulletDecals.length > 50) this.bulletDecals.shift();
+            }
+
+            this.particleSystem.addBulletTracer(startX, startY, finalImpactX, finalImpactY, weapon.color);
         }
-
-        let finalImpactX = wallHitPoint.x;
-        let finalImpactY = wallHitPoint.y;
-
-        if (hitOpponent && oppImpactPoint) {
-            finalImpactX = oppImpactPoint.x;
-            finalImpactY = oppImpactPoint.y;
-
-            // Apply Damage & Score!
-            hitOpponent.hp -= oppHitDamage;
-            hitOpponent.screenShake = 1.0;
-            hitOpponent.punchZoom = 1.0;
-            hitOpponent.vignetteFlash = 1.0;
-            this.audioEngine.playHit();
-
-            const scoreGain = Math.max(10, oppHitDamage * 2);
-            player.score += scoreGain;
-
-            // Show damage as floating text
-            let damageText = `-${oppHitDamage} HP`;
-            if (oppHitDamage >= 45) damageText = `CRITIQUE -${oppHitDamage}`;
-            else if (oppHitDamage <= 20) damageText = `ÉRAFLURE -${oppHitDamage}`;
-
-            this.particleSystem.addFloatingText(oppImpactPoint.x, oppImpactPoint.y - 15, damageText, player.color);
-            this.addKillFeedEntry(`${player.name} → ${damageText}`, player.color);
-
-            if (hitOpponent.hp <= 0) {
-                player.score += 500;
-                this.particleSystem.addFloatingText(oppImpactPoint.x, oppImpactPoint.y - 35, '+500 ÉLIMINATION !', '#00ff88');
-                this.addKillFeedEntry(`${player.name} ✦ ÉLIMINATION !`, '#00ff88');
-            }
-
-            // Blood / Energy impact sparks
-            for (let k = 0; k < 14; k++) {
-                this.particleSystem.addBloodSpark(oppImpactPoint.x, oppImpactPoint.y, player.angle);
-            }
-        } else {
-            // Wall impact sparks
-            for (let k = 0; k < 8; k++) {
-                this.particleSystem.addSpark(wallHitPoint.x, wallHitPoint.y, player.angle + Math.PI);
-            }
-            // Bullet decal on wall
-            this.bulletDecals.push({ x: wallHitPoint.x, y: wallHitPoint.y, size: 3 + Math.random() * 4, alpha: 0.6 });
-            if (this.bulletDecals.length > 50) this.bulletDecals.shift();
-        }
-
-        // Add visual fast tracer
-        this.particleSystem.addBulletTracer(startX, startY, finalImpactX, finalImpactY, player.color);
 
         this.audioEngine.playShoot();
     }
