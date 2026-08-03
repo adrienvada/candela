@@ -1733,6 +1733,19 @@ class CandelaGame {
         if (vPrev) vPrev.addEventListener('click', () => this.changeMapIndex(-1));
         if (vNext) vNext.addEventListener('click', () => this.changeMapIndex(1));
 
+        const mapCard = document.getElementById('focus-card-map');
+        if (mapCard) {
+            mapCard.addEventListener('click', () => this.changeMapIndex(1));
+        }
+
+        const formatCard = document.getElementById('focus-card-format');
+        if (formatCard) {
+            formatCard.addEventListener('click', (e) => {
+                if (e.target.classList.contains('format-btn')) return;
+                this.cycleMatchFormat();
+            });
+        }
+
         const cards = [
             { id: 'p1-slot-1-card', p: 0, s: 0 },
             { id: 'p1-slot-2-card', p: 0, s: 1 },
@@ -2283,9 +2296,16 @@ class CandelaGame {
             }
         }
 
-        // Action Trigger (A / Cross / X / Trigger / Space)
+        // Action Trigger (Gamepad A / Cross / X / South Button OR Keyboard Enter / Space)
         if (!this.actionDebounce) this.actionDebounce = [false, false];
-        const isActionPressed = inInput.shoot || inInput.dash || inInput.switchWeapon;
+
+        const gp = this.inputManager.gamepads[playerIndex];
+        const aBtnPressed = gp && gp.buttons[0] && (gp.buttons[0].pressed || gp.buttons[0].value > 0.5);
+        const xBtnPressed = gp && gp.buttons[2] && (gp.buttons[2].pressed || gp.buttons[2].value > 0.5);
+        const keyActionPressed = (playerIndex === 0 && (this.inputManager.keys['space'] || this.inputManager.keys['enter']));
+
+        // NOTE: Mouse clicks are handled naturally by DOM element onclick events!
+        const isActionPressed = aBtnPressed || xBtnPressed || keyActionPressed;
 
         if (isActionPressed && !this.actionDebounce[playerIndex]) {
             this.actionDebounce[playerIndex] = true;
@@ -2298,7 +2318,6 @@ class CandelaGame {
         }
 
         // Bumper L1 / R1 triggers option cycling on currently focused card!
-        const gp = this.inputManager.gamepads[playerIndex];
         const l1Pressed = gp && gp.buttons[4] && gp.buttons[4].pressed;
         const r1Pressed = gp && gp.buttons[5] && gp.buttons[5].pressed;
 
