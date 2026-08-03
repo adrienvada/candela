@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Test In-Game Weapon HUD Active</title>
+    <title>Test Active HUD View</title>
 </head>
 <body style="margin: 0; background: #000;">
     <iframe id="gameFrame" src="../index.html" style="width: 100vw; height: 100vh; border: none;"></iframe>
@@ -19,10 +19,12 @@
 
             setTimeout(() => {
                 if (win.game) {
-                    win.game.startGameFromStartMenu();
-                    console.log("🎮 Match started active view!");
+                    win.document.getElementById('start-menu').classList.add('hidden');
+                    win.game.gameState = 'PLAYING';
+                    win.game.resetRound();
+                    console.log("🎮 Active match HUD view!");
                 }
-            }, 500);
+            }, 600);
         };
     </script>
 </body>
