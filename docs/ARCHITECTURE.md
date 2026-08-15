@@ -1,4 +1,4 @@
-# Architecture — Candela
+# Architecture — Candela 2D - Web
 
 Carte du code telle qu'elle est aujourd'hui. À mettre à jour dès qu'un fichier ou
 une classe bouge.

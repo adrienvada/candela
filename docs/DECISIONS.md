@@ -1,4 +1,4 @@
-# Journal des décisions (ADR)
+# Journal des décisions (ADR) — Candela 2D - Web
 
 Chaque décision technique structurante — **y compris celles qu'on écarte** — est
 consignée ici. Format court : contexte, décision, conséquences.

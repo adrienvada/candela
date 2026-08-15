@@ -1,4 +1,4 @@
-# Roadmap — Candela
+# Roadmap — Candela 2D - Web
 
 **Dernière mise à jour : 2026-08-15**
 

@@ -1,11 +1,11 @@
-# CLAUDE.md — Candela
+# CLAUDE.md — Candela 2D - Web
 
 > Fichier lu automatiquement au démarrage de chaque session Claude Code.
 > Il doit rester **court**. Le détail vit dans `docs/`.
 
 ## Le projet en trois lignes
 
-Candela est un jeu de duel tactique 1v1 en 2D, jouable dans le navigateur (canvas,
+**Candela 2D - Web** est un jeu de duel tactique 1v1 en 2D, jouable dans le navigateur (canvas,
 JavaScript vanilla, aucun build, aucune dépendance). Le cœur du gameplay est la
 **lumière** : chaque joueur porte une lampe torche, ne voit que ce qu'elle éclaire,
 et peut éblouir l'adversaire. Split-screen, deux joueurs sur la même machine.
@@ -39,8 +39,13 @@ pas l'écriture de code réseau.
 
 ## Conventions
 
+- **Nommage** : le projet s'appelle **Candela 2D - Web** (dépôt, `<title>`, manifest,
+  en-têtes de fichiers, docs). Le suffixe « - Web » marque l'édition navigateur, en
+  prévision d'un éventuel client natif (voir ADR-003). En revanche, le **logo affiché
+  en jeu reste `CANDELA 2D`** (titre glitch du menu, `.brand-badge`) : c'est la marque
+  vue par le joueur, elle ne porte pas le nom d'édition. Ne pas « harmoniser » les deux.
 - **Langue** : commits, docs, commentaires et UI en **français**. Identifiants de
-  code en anglais (`shootGun`, `matchStats`).
+  code en anglais (`shootGun`, `matchStats`). La classe `CandelaGame` garde son nom.
 - **Commits** : une phrase descriptive à l'impératif ou au substantif, en français,
   qui dit *ce que ça change pour le joueur* — pas `fix bug` mais
   `Correction du HUD J2 masqué en Overtime`.

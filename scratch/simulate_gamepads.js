@@ -1,4 +1,4 @@
-// Gamepad Simulation & Automated Dual Controller Test Script for Candela 2D
+// Gamepad Simulation & Automated Dual Controller Test Script for Candela 2D - Web
 window.simulateDualGamepads = function(p1Ready = true, p2Ready = true) {
     const fakeGp1 = {
         id: 'DualSense Wireless Controller (SIMULATED P1)',
